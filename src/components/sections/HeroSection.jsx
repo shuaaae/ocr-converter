@@ -1,7 +1,19 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { FileSpreadsheet, Download, ScanLine, CheckCircle, X, Search, Trash2, Clock } from 'lucide-react';
+import { FileSpreadsheet, Download, ScanLine, CheckCircle, X, Search, Trash2, Clock, Send, Bot, User } from 'lucide-react';
 import useTypingAnimation from '../../hooks/useTypingAnimation';
 import { downloadExtractedExcel } from '../../utils/excelExport';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const MOTIVATIONAL_QUOTES = [
+  'Every great achievement starts with a single scan.',
+  'Efficiency is doing things right; productivity is doing the right things.',
+  'The secret of getting ahead is getting started.',
+  'Small progress is still progress. Keep going!',
+  'Automation is the key to scaling your success.',
+  'Your time is valuable — let AI handle the repetitive work.',
+  'Today is a great day to be productive!',
+  'Work smarter, not harder. Let technology help you.',
+];
 
 const DEMO_NAMES = ['Jonathan Sterling', 'Maria Santos', 'James Nakamura', 'Elena Petrova', 'Carlos Mendez'];
 const DEMO_IDS = ['TX-992-8812', 'PH-441-6723', 'JP-108-3301', 'RU-556-9940', 'MX-773-2158'];
@@ -24,6 +36,40 @@ const HeroSection = ({
   // panelMode: 'normal' | 'closed' | 'minimized' | 'fullscreen' | 'history'
   const [panelMode, setPanelMode] = useState('normal');
   const [searchQuery, setSearchQuery] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useCallback((node) => { node?.scrollIntoView({ behavior: 'smooth' }); }, []);
+  const typedQuote = useTypingAnimation(MOTIVATIONAL_QUOTES, 40, 4000);
+
+  const sendChatMessage = useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text || isChatLoading) return;
+    const userMsg = { role: 'user', text };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput('');
+    setIsChatLoading(true);
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+      const history = chatMessages.map((m) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text }],
+      }));
+      const chat = model.startChat({
+        history,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 300 },
+      });
+      const result = await chat.sendMessage(text);
+      const reply = result.response.text();
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: reply }]);
+    } catch {
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: 'Sorry, I couldn\'t respond right now. Please try again.' }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  }, [chatInput, isChatLoading, chatMessages]);
 
   // Lock body scroll when a fullscreen modal is open
   useEffect(() => {
@@ -181,7 +227,7 @@ const HeroSection = ({
 
     // State: Default — animated mock preview
     return (
-      <div className="flex-1 p-6 grid grid-cols-[2fr_3fr] max-md:grid-cols-1 gap-6 max-h-[420px] overflow-y-auto thin-scrollbar">
+      <div className="flex-1 p-6 grid grid-cols-[2fr_3fr] max-md:grid-cols-1 gap-6">
         <div className="flex flex-col gap-3">
           <div className="relative w-full aspect-[3/2] max-md:aspect-[16/9] rounded-xl bg-slate-200 overflow-hidden border border-[var(--outline-variant)]">
             <img className="w-full h-full object-cover object-top" src="/ID.png" alt="Sample ID" />
@@ -217,6 +263,68 @@ const HeroSection = ({
           </div>
         </div>
 
+        {/* AI Chatbot */}
+        <div className="col-span-full mt-2">
+          <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--outline-variant)] bg-[rgba(255,92,0,0.04)]">
+              <Bot size={14} className="text-[var(--accent-primary)]" />
+              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[var(--text-muted)]">Hi Ma'am RIA, This is Joshua your AI Assistant! 😉</span>
+            </div>
+
+            <div className="h-[120px] overflow-y-auto thin-scrollbar px-4 py-3 flex flex-col gap-2">
+              {chatMessages.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-xs text-[var(--text-muted)] italic text-center">
+                    {typedQuote}<span className="inline-block w-[2px] h-[1em] bg-[var(--accent-primary)] ml-0.5 align-middle animate-pulse" />
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.role !== 'user' && <Bot size={12} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />}
+                      <div className={`max-w-[80%] px-3 py-1.5 rounded-xl text-[11px] leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-[var(--accent-primary)] text-white rounded-br-sm'
+                          : 'bg-[var(--surface-container)] text-[var(--text-primary)] rounded-bl-sm'
+                      }`}>
+                        {msg.text}
+                      </div>
+                      {msg.role === 'user' && <User size={12} className="text-[var(--text-muted)] shrink-0 mt-0.5" />}
+                    </div>
+                  ))}
+                  {isChatLoading && (
+                    <div className="flex gap-2 justify-start">
+                      <Bot size={12} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
+                      <div className="px-3 py-1.5 rounded-xl rounded-bl-sm bg-[var(--surface-container)] text-[11px] text-[var(--text-muted)]">
+                        <span className="animate-pulse">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--outline-variant)]">
+              <input
+                type="text"
+                placeholder="Ask me anything..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={!chatInput.trim() || isChatLoading}
+                className="p-1.5 rounded-lg bg-[var(--accent-primary)] border-none cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Send size={12} className="text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
