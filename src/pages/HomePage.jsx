@@ -9,6 +9,9 @@ import docxToImages from '../services/docxProcessor';
 
 const MAX_FILES = 10;
 
+// Simple file fingerprint for caching
+const getFileKey = (file) => `${file.name}_${file.size}_${file.lastModified}`;
+
 const HomePage = () => {
   const [files, setFiles] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,6 +19,7 @@ const HomePage = () => {
   const [error, setError] = useState(null);
   const [processingStatus, setProcessingStatus] = useState('');
   const fileInputRef = useRef(null);
+  const cacheRef = useRef(new Map());
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -83,7 +87,16 @@ const HomePage = () => {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileLabel = files.length > 1 ? `${file.name} (${i + 1}/${files.length})` : file.name;
+        const fileKey = getFileKey(file);
 
+        // Check cache — skip re-processing identical files
+        if (cacheRef.current.has(fileKey)) {
+          setProcessingStatus(`Using cached results for ${file.name}...`);
+          results.push(...cacheRef.current.get(fileKey));
+          continue;
+        }
+
+        const fileResults = [];
         const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           || file.name.endsWith('.docx') || file.name.endsWith('.doc');
 
@@ -97,7 +110,7 @@ const HomePage = () => {
           for (const { blob, pageNum } of pages) {
             const pageLabel = `${file.name} — Page ${pageNum}`;
             const pageIds = await processPageBlob(blob, pageLabel);
-            results.push(...pageIds);
+            fileResults.push(...pageIds);
           }
         } else if (isDocx) {
           // DOCX: extract embedded images, then process each
@@ -111,13 +124,17 @@ const HomePage = () => {
           for (const { blob, index } of images) {
             const imgLabel = `${file.name} — Image ${index}`;
             const imgIds = await processPageBlob(blob, imgLabel);
-            results.push(...imgIds);
+            fileResults.push(...imgIds);
           }
         } else {
           // Image file: may contain multiple IDs
           const imageIds = await processImage(file, fileLabel);
-          results.push(...imageIds);
+          fileResults.push(...imageIds);
         }
+
+        // Cache results for this file
+        cacheRef.current.set(fileKey, fileResults);
+        results.push(...fileResults);
       }
 
       setExtractedData(results);

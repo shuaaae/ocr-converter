@@ -158,6 +158,25 @@ html, body {
   animation: pulse-border 2s ease-in-out infinite;
 }
 
+/* Thin scrollbar */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 4px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--outline-variant) transparent;
+}
+
 /* View Transition — circular theme switch */
 ::view-transition-old(root),
 ::view-transition-new(root) {

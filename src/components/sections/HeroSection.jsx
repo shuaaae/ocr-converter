@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { FileSpreadsheet, Download, ScanLine, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { FileSpreadsheet, Download, ScanLine, CheckCircle, Clock, Trash2, Eye, X } from 'lucide-react';
 import ExcelJS from 'exceljs';
 
 const DEMO_NAMES = ['Jonathan Sterling', 'Maria Santos', 'James Nakamura', 'Elena Petrova', 'Carlos Mendez'];
@@ -48,6 +48,50 @@ const HeroSection = ({
   const hasResults = extractedData && extractedData.length > 0;
   const typedName = useTypingAnimation(DEMO_NAMES);
   const typedId = useTypingAnimation(DEMO_IDS, 50, 2000);
+  const [scanVersion, setScanVersion] = useState(0);
+  const [showAllModal, setShowAllModal] = useState(false);
+  // Re-read localStorage when extractedData changes or history is cleared
+  const recentScans = useMemo(() =>
+    JSON.parse(localStorage.getItem('ocrScans') || '[]'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [extractedData, scanVersion]
+  );
+
+  const downloadScanExcel = useCallback(async (scans, label) => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Extracted Data');
+    const headers = ['ID NUMBER', 'FULL NAME', 'BIRTH DATE', 'ADDRESS', 'EXPIRATION OF ID'];
+    const headerRow = sheet.addRow(headers);
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, size: 11 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+    scans.forEach((s) => {
+      const d = s.data || s;
+      sheet.addRow([d.documentNumber, d.fullName, d.dateOfBirth, d.address, d.expiryDate]);
+    });
+    sheet.columns.forEach((col) => {
+      let maxLen = 12;
+      col.eachCell({ includeEmpty: true }, (cell) => {
+        const len = cell.value ? String(cell.value).length + 2 : 12;
+        if (len > maxLen) maxLen = len;
+      });
+      col.width = Math.min(maxLen, 40);
+    });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `IDScan_${label}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    localStorage.removeItem('ocrScans');
+    setScanVersion((v) => v + 1);
+  }, []);
 
   const downloadExcel = async () => {
     if (!extractedData || extractedData.length === 0) return;
@@ -205,7 +249,7 @@ const HeroSection = ({
 
     // State: Default — animated mock preview
     return (
-      <div className="flex-1 p-6 grid grid-cols-[2fr_3fr] max-md:grid-cols-1 gap-6">
+      <div className="flex-1 p-6 grid grid-cols-[2fr_3fr] max-md:grid-cols-1 gap-6 max-h-[420px] overflow-y-auto thin-scrollbar">
         <div className="flex flex-col gap-3">
           <div className="relative w-full aspect-[3/2] max-md:aspect-[16/9] rounded-xl bg-slate-200 overflow-hidden border border-[var(--outline-variant)]">
             <img className="w-full h-full object-cover object-top" src="/ID.png" alt="Sample ID" />
@@ -240,11 +284,168 @@ const HeroSection = ({
             Developed by <a href="https://shuaaae.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] font-bold hover:underline">Joshua Godalle</a>
           </div>
         </div>
+
+        {/* Recent Conversions */}
+        {recentScans.length > 0 && (
+          <div className="col-span-full border-t border-[var(--outline-variant)] pt-4 mt-2">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+                <Clock size={12} className="text-[var(--accent-primary)]" />
+                Recent Conversions
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowAllModal(true)} className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer bg-transparent border-none p-0">
+                  <Eye size={10} />
+                  View All
+                </button>
+                <button onClick={clearHistory} className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none p-0">
+                  <Trash2 size={10} />
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto thin-scrollbar">
+              {(() => {
+                // Group scans by close timestamps (within 5s = same batch)
+                const batches = [];
+                let current = null;
+                recentScans.forEach((scan) => {
+                  if (!current || Math.abs(scan.timestamp - current.timestamp) > 5000) {
+                    current = { timestamp: scan.timestamp, scans: [scan] };
+                    batches.push(current);
+                  } else {
+                    current.scans.push(scan);
+                  }
+                });
+                return batches.map((batch) => {
+                  const date = new Date(batch.timestamp);
+                  const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  const count = batch.scans.length;
+                  // Build a readable name from extracted full names
+                  const names = batch.scans
+                    .map((s) => (s.data?.fullName || '').split(' ')[0])
+                    .filter((n) => n && n !== 'Not');
+                  const title = names.length > 0
+                    ? names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '')
+                    : `${count} ID${count > 1 ? 's' : ''}`;
+                  return (
+                    <div key={batch.timestamp} className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">{title}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{count} ID{count > 1 ? 's' : ''} · {label}</span>
+                      </div>
+                      <button
+                        onClick={() => downloadScanExcel(batch.scans, date.toISOString().slice(0, 10))}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-[var(--accent-primary)] text-white text-[10px] font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity"
+                      >
+                        <Download size={10} />
+                        Excel
+                      </button>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+  // Group scans into batches for the modal
+  const allBatches = useMemo(() => {
+    const batches = [];
+    let current = null;
+    recentScans.forEach((scan) => {
+      if (!current || Math.abs(scan.timestamp - current.timestamp) > 5000) {
+        current = { timestamp: scan.timestamp, scans: [scan] };
+        batches.push(current);
+      } else {
+        current.scans.push(scan);
+      }
+    });
+    return batches;
+  }, [recentScans]);
+
   return (
+    <>
+    {/* View All Modal */}
+    {showAllModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowAllModal(false)}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          className="relative z-10 w-full max-w-2xl max-h-[80vh] bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--outline-variant)] flex flex-col overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--outline-variant)]">
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-[var(--accent-primary)]" />
+              <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--text-primary)]">All Conversions</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.1)] text-[var(--accent-primary)] font-semibold">{allBatches.length}</span>
+            </div>
+            <button onClick={() => setShowAllModal(false)} className="p-1 rounded-lg hover:bg-[var(--surface-container)] transition-colors cursor-pointer bg-transparent border-none">
+              <X size={18} className="text-[var(--text-muted)]" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="flex-1 overflow-y-auto thin-scrollbar p-6">
+            {allBatches.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-8">No conversions yet.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {allBatches.map((batch) => {
+                  const date = new Date(batch.timestamp);
+                  const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  const count = batch.scans.length;
+                  const names = batch.scans
+                    .map((s) => s.data?.fullName || 'Unknown')
+                    .filter((n) => n !== 'Not found');
+                  return (
+                    <div key={batch.timestamp} className="p-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{count} ID{count > 1 ? 's' : ''} extracted</span>
+                            <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {names.map((name, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => downloadScanExcel(batch.scans, date.toISOString().slice(0, 10))}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
+                        >
+                          <Download size={12} />
+                          Excel
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="flex items-center justify-between px-6 py-3 border-t border-[var(--outline-variant)] bg-[var(--surface-container-low)]">
+            <span className="text-[10px] text-[var(--text-muted)]">{recentScans.length} total ID{recentScans.length !== 1 ? 's' : ''} across {allBatches.length} conversion{allBatches.length !== 1 ? 's' : ''}</span>
+            <button
+              onClick={() => { clearHistory(); setShowAllModal(false); }}
+              className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none p-0"
+            >
+              <Trash2 size={10} />
+              Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <section className="py-20 px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div className="flex flex-col gap-8 lg:text-left text-center lg:items-start items-center">
@@ -287,7 +488,7 @@ const HeroSection = ({
         {/* Glass Dashboard Preview / Live Extraction Panel */}
         <div className="relative">
           <div className="absolute -inset-4 bg-[rgba(255,92,0,0.1)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
-          <div className="glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden aspect-[4/3] flex flex-col hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)]">
+          <div className="glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
               <div className="flex gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
@@ -303,6 +504,7 @@ const HeroSection = ({
         </div>
       </div>
     </section>
+    </>
   );
 };
 
