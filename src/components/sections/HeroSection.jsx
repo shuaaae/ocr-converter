@@ -33,7 +33,7 @@ const HeroSection = ({
   const typedName = useTypingAnimation(DEMO_NAMES);
   const typedId = useTypingAnimation(DEMO_IDS, 50, 2000);
   const [scanVersion, setScanVersion] = useState(0);
-  // panelMode: 'normal' | 'closed' | 'minimized' | 'fullscreen' | 'history'
+  // panelMode: 'normal' | 'closed' | 'minimized' | 'fullscreen' | 'history' | 'historyFullscreen' | 'chat'
   const [panelMode, setPanelMode] = useState('normal');
   const [searchQuery, setSearchQuery] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
@@ -263,68 +263,6 @@ const HeroSection = ({
           </div>
         </div>
 
-        {/* AI Chatbot */}
-        <div className="col-span-full mt-2">
-          <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--outline-variant)] bg-[rgba(255,92,0,0.04)]">
-              <Bot size={14} className="text-[var(--accent-primary)]" />
-              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[var(--text-muted)]">Hi Ma'am RIA, This is Joshua your AI Assistant! 😉</span>
-            </div>
-
-            <div className="h-[120px] overflow-y-auto thin-scrollbar px-4 py-3 flex flex-col gap-2">
-              {chatMessages.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <p className="text-xs text-[var(--text-muted)] italic text-center">
-                    {typedQuote}<span className="inline-block w-[2px] h-[1em] bg-[var(--accent-primary)] ml-0.5 align-middle animate-pulse" />
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      {msg.role !== 'user' && <Bot size={12} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />}
-                      <div className={`max-w-[80%] px-3 py-1.5 rounded-xl text-[11px] leading-relaxed ${
-                        msg.role === 'user'
-                          ? 'bg-[var(--accent-primary)] text-white rounded-br-sm'
-                          : 'bg-[var(--surface-container)] text-[var(--text-primary)] rounded-bl-sm'
-                      }`}>
-                        {msg.text}
-                      </div>
-                      {msg.role === 'user' && <User size={12} className="text-[var(--text-muted)] shrink-0 mt-0.5" />}
-                    </div>
-                  ))}
-                  {isChatLoading && (
-                    <div className="flex gap-2 justify-start">
-                      <Bot size={12} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
-                      <div className="px-3 py-1.5 rounded-xl rounded-bl-sm bg-[var(--surface-container)] text-[11px] text-[var(--text-muted)]">
-                        <span className="animate-pulse">Thinking...</span>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--outline-variant)]">
-              <input
-                type="text"
-                placeholder="Ask me anything..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
-                className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-              />
-              <button
-                onClick={sendChatMessage}
-                disabled={!chatInput.trim() || isChatLoading}
-                className="p-1.5 rounded-lg bg-[var(--accent-primary)] border-none cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Send size={12} className="text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     );
   };
@@ -371,7 +309,7 @@ const HeroSection = ({
         </div>
 
         {/* Glass Dashboard Preview / Live Extraction Panel */}
-        {panelMode !== 'closed' && panelMode !== 'fullscreen' && panelMode !== 'history' && (
+        {panelMode !== 'closed' && panelMode !== 'fullscreen' && panelMode !== 'history' && panelMode !== 'chat' && (
           <div className="relative">
             <div className="absolute -inset-4 bg-[rgba(255,92,0,0.1)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
             <div className={`glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)] ${panelMode === 'minimized' ? 'panel-animate-minimize' : 'panel-animate-open'}`}>
@@ -432,9 +370,98 @@ const HeroSection = ({
                   <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">{recentScans.length > 99 ? '99+' : recentScans.length}</span>
                 )}
               </div>
+              <div className="w-px h-10 bg-[var(--outline-variant)] opacity-50 self-center" />
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setPanelMode('chat')}
+                  className="dock-icon-bounce w-14 h-14 rounded-[14px] bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] border-none p-0 cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(139,92,246,0.3)] transition-transform hover:scale-110 active:scale-95"
+                >
+                  <span className="material-symbols-outlined !text-[24px] text-white">smart_toy</span>
+                </button>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)]">Joshua</span>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Chat Panel */}
+        {panelMode === 'chat' && (
+          <div className="relative">
+            <div className="absolute -inset-4 bg-[rgba(139,92,246,0.08)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
+            <div className="glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col panel-animate-open">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
+                <div className="flex gap-2">
+                  <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-red-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Close">
+                    <span className="material-symbols-outlined !text-[10px] text-red-800">close</span>
+                  </button>
+                  <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-amber-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Minimize">
+                    <span className="material-symbols-outlined !text-[10px] text-amber-800">remove</span>
+                  </button>
+                  <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-emerald-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Back to Dock">
+                    <span className="material-symbols-outlined !text-[10px] text-emerald-800">fullscreen</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+                  Hi Ma'am RIA, This is Joshua your AI Assistant! 😉
+                </div>
+              </div>
+
+              <div className="h-[300px] overflow-y-auto thin-scrollbar px-4 py-3 flex flex-col gap-2">
+                {chatMessages.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-xs text-[var(--text-muted)] italic text-center">
+                      {typedQuote}<span className="inline-block w-[2px] h-[1em] bg-[var(--accent-primary)] ml-0.5 align-middle animate-pulse" />
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {msg.role !== 'user' && <Bot size={12} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />}
+                        <div className={`max-w-[80%] px-3 py-1.5 rounded-xl text-[11px] leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-[var(--accent-primary)] text-white rounded-br-sm'
+                            : 'bg-[var(--surface-container)] text-[var(--text-primary)] rounded-bl-sm'
+                        }`}>
+                          {msg.text}
+                        </div>
+                        {msg.role === 'user' && <User size={12} className="text-[var(--text-muted)] shrink-0 mt-0.5" />}
+                      </div>
+                    ))}
+                    {isChatLoading && (
+                      <div className="flex gap-2 justify-start">
+                        <Bot size={12} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
+                        <div className="px-3 py-1.5 rounded-xl rounded-bl-sm bg-[var(--surface-container)] text-[11px] text-[var(--text-muted)]">
+                          <span className="animate-pulse">Thinking...</span>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--outline-variant)]">
+                <input
+                  type="text"
+                  placeholder="Ask me anything..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                  className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={!chatInput.trim() || isChatLoading}
+                  className="p-1.5 rounded-lg bg-[var(--accent-primary)] border-none cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <Send size={12} className="text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* History Panel */}
         {panelMode === 'history' && (
           <div className="relative">
@@ -551,6 +578,8 @@ const HeroSection = ({
             </div>
           </div>
         )}
+
+        {/* Dock — add AI Assistant icon */}
       </div>
     </section>
 
