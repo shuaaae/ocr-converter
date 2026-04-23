@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 
-const HEADERS = ['ID NUMBER', 'FULL NAME', 'BIRTH DATE', 'ADDRESS', 'EXPIRATION OF ID'];
+const HEADERS = ['ID NUMBER', 'LAST NAME', 'FIRST NAME', 'MIDDLE NAME', 'BIRTH DATE', 'ADDRESS', 'EXPIRATION OF ID'];
 
 const buildWorkbook = async (rows) => {
   const workbook = new ExcelJS.Workbook();
@@ -13,7 +13,7 @@ const buildWorkbook = async (rows) => {
   });
 
   rows.forEach((item) => {
-    sheet.addRow([item.documentNumber, item.fullName, item.dateOfBirth, item.address, item.expiryDate]);
+    sheet.addRow([item.documentNumber, item.lastName, item.firstName, item.middleName, item.dateOfBirth, item.address, item.expiryDate]);
   });
 
   // Auto-fit column widths

@@ -5,6 +5,9 @@ const PLACEHOLDER_API_KEY = 'YOUR_GEMINI_API_KEY_HERE';
 
 const REQUIRED_FIELDS = [
   'fullName',
+  'lastName',
+  'firstName',
+  'middleName',
   'dateOfBirth',
   'nationality',
   'address',
@@ -67,17 +70,26 @@ If the image does NOT contain any identity document, return exactly:
 If the image DOES contain identity documents, analyze it carefully. It may contain ONE or MULTIPLE ID documents (e.g. several IDs pasted on the same page).
 ${ocrHint}
 For EACH ID document you find in the image, extract these fields:
-- fullName: Full name of the person
+- fullName: Full name of the person exactly as printed on the ID
+- lastName: The person's surname / family name (analyze the full name carefully to determine which part is the last name based on the ID format and cultural naming conventions)
+- firstName: The person's given name / first name
+- middleName: The person's middle name (if present)
 - dateOfBirth: Date of birth
 - nationality: Nationality or citizenship
 - address: Complete address
 - documentNumber: ID number, passport number, or document number
 - expiryDate: Expiration date of the document
 
+IMPORTANT for name parsing:
+- For Filipino IDs: Names are typically formatted as "LAST NAME, FIRST NAME MIDDLE NAME" — parse accordingly.
+- For Western IDs: Names are typically "FIRST NAME MIDDLE NAME LAST NAME".
+- For other formats: Use context clues from the ID layout, labels, and cultural conventions to accurately determine which parts are first, middle, and last names.
+- If the ID explicitly labels name parts (e.g. "Surname:", "Given Name:"), use those labels.
+
 If a field is not found, use "Not found" as the value.
 
 Return a JSON object with:
-{"isIdDocument": true, "data": [{"fullName":"...","dateOfBirth":"...","nationality":"...","address":"...","documentNumber":"...","expiryDate":"..."}]}
+{"isIdDocument": true, "data": [{"fullName":"...","lastName":"...","firstName":"...","middleName":"...","dateOfBirth":"...","nationality":"...","address":"...","documentNumber":"...","expiryDate":"..."}]}
 
 Return ONLY valid JSON without markdown formatting. Do not include extra text.
 `;
