@@ -1,0 +1,174 @@
+/* IDScan AI - Clinical Precision Theme */
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #fff8f6;
+  --color-bg-secondary: #ffe9e2;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #fff1ec;
+  --color-accent: #FF5C00;
+  --color-accent-dark: #a73a00;
+  --color-text-primary: #271812;
+  --color-text-secondary: #5b4137;
+  --color-text-muted: #8f7065;
+  --color-border: #e4beb1;
+  --color-surface: #ffe9e2;
+  --color-surface-high: #ffe2d8;
+  --color-surface-low: #fff1ec;
+  --color-outline: #e4beb1;
+  --color-success: #16a34a;
+}
+
+:root {
+  --bg-primary: #fff8f6;
+  --bg-secondary: #ffe9e2;
+  --bg-card: #ffffff;
+  --accent-primary: #FF5C00;
+  --accent-secondary: #a73a00;
+  --text-primary: #271812;
+  --text-secondary: #5b4137;
+  --text-muted: #8f7065;
+  --surface-container: #ffe9e2;
+  --surface-container-low: #fff1ec;
+  --outline-variant: #e4beb1;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-card: #1a1a1a;
+  --accent-primary: #FF6B1A;
+  --accent-secondary: #ff8c4a;
+  --text-primary: #f0f0f0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #707070;
+  --surface-container: #1a1a1a;
+  --surface-container-low: #161616;
+  --outline-variant: #2a2a2a;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'liga';
+}
+
+html, body {
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ==================== KEYFRAMES ==================== */
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes pulse-border {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes pulse-scan {
+  0%, 100% { opacity: 0.4; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ==================== SPECIAL STYLES ==================== */
+.navbar-glass {
+  background: color-mix(in srgb, var(--bg-primary) 60%, transparent);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+}
+
+[data-theme="dark"] .toggle-thumb {
+  transform: translateX(26px);
+}
+
+[data-theme="dark"] .toggle-track {
+  background: var(--accent-primary);
+}
+
+.glass-card-effect {
+  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.marquee-track {
+  animation: marquee 25s linear infinite;
+}
+
+.scan-animate {
+  animation: pulse-scan 1.5s ease-in-out infinite;
+}
+
+.progress-animate {
+  animation: progress-slide 2s ease-in-out infinite;
+}
+
+.ping-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  opacity: 0.75;
+}
+
+.ping-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+.pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+/* View Transition — circular theme switch */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}

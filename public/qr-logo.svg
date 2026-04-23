@@ -1,0 +1,23 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top-left block -->
+  <rect x="1" y="1" width="10" height="10" rx="1" stroke="#FF5C00" stroke-width="2" fill="none"/>
+  <rect x="4" y="4" width="4" height="4" rx="0.5" fill="#FF5C00"/>
+  <!-- Top-right block -->
+  <rect x="21" y="1" width="10" height="10" rx="1" stroke="#FF5C00" stroke-width="2" fill="none"/>
+  <rect x="24" y="4" width="4" height="4" rx="0.5" fill="#FF5C00"/>
+  <!-- Bottom-left block -->
+  <rect x="1" y="21" width="10" height="10" rx="1" stroke="#FF5C00" stroke-width="2" fill="none"/>
+  <rect x="4" y="24" width="4" height="4" rx="0.5" fill="#FF5C00"/>
+  <!-- Scattered data pixels -->
+  <rect x="14" y="1" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="1" y="14" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="14" y="14" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="19" y="14" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="14" y="19" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="28" y="14" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="24" y="19" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="28" y="24" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="19" y="28" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="7" y="14" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+  <rect x="14" y="7" width="3" height="3" rx="0.5" fill="#FF5C00"/>
+</svg>
