@@ -59,7 +59,12 @@ const geminiOCR = async ({ file, base64, mimeType, ocrText } = {}) => {
     : '';
 
   const prompt = `
-Analyze this image carefully. It may contain ONE or MULTIPLE ID documents (e.g. several IDs pasted on the same page).
+First, determine if this image contains any valid identity documents (e.g. government-issued ID cards, passports, driver's licenses, national IDs, voter IDs, or similar official identification documents).
+
+If the image does NOT contain any identity document, return exactly:
+{"isIdDocument": false, "reason": "Brief explanation of what the image shows instead"}
+
+If the image DOES contain identity documents, analyze it carefully. It may contain ONE or MULTIPLE ID documents (e.g. several IDs pasted on the same page).
 ${ocrHint}
 For EACH ID document you find in the image, extract these fields:
 - fullName: Full name of the person
@@ -71,8 +76,8 @@ For EACH ID document you find in the image, extract these fields:
 
 If a field is not found, use "Not found" as the value.
 
-Return a JSON ARRAY of objects. Even if there is only one ID, wrap it in an array.
-Example: [{"fullName":"...","dateOfBirth":"...","nationality":"...","address":"...","documentNumber":"...","expiryDate":"..."}]
+Return a JSON object with:
+{"isIdDocument": true, "data": [{"fullName":"...","dateOfBirth":"...","nationality":"...","address":"...","documentNumber":"...","expiryDate":"..."}]}
 
 Return ONLY valid JSON without markdown formatting. Do not include extra text.
 `;
@@ -92,9 +97,31 @@ Return ONLY valid JSON without markdown formatting. Do not include extra text.
     const text = response.text();
     const parsed = parseGeminiJson(text);
 
-    // Ensure we always have an array
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    return items.map(normalizeExtractedData);
+    // Check if image was rejected as non-ID
+    if (parsed && parsed.isIdDocument === false) {
+      throw new Error(`This doesn't appear to be an ID document. ${parsed.reason || 'Please upload a valid government-issued ID, passport, or driver\'s license.'}`);
+    }
+
+    // Handle new format with isIdDocument wrapper
+    let items;
+    if (parsed && parsed.isIdDocument === true && Array.isArray(parsed.data)) {
+      items = parsed.data;
+    } else if (Array.isArray(parsed)) {
+      items = parsed;
+    } else {
+      items = [parsed];
+    }
+
+    // Extra validation: reject if all fields are "Not found"
+    const normalized = items.map(normalizeExtractedData);
+    const allEmpty = normalized.every((item) =>
+      REQUIRED_FIELDS.every((f) => item[f] === 'Not found')
+    );
+    if (allEmpty) {
+      throw new Error('No ID information could be extracted. Please ensure the image contains a clear, readable identity document.');
+    }
+
+    return normalized;
   } catch (error) {
     console.error('Gemini OCR Error:', error);
     throw new Error(error.message || 'Failed to extract data from image. Please check your API key and try again.');

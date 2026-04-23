@@ -1,6 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import Navbar from '../components/layout/Navbar';
 import HeroSection from '../components/sections/HeroSection';
+import TrustedBySection from '../components/sections/TrustedBySection';
+import FeaturesSection from '../components/sections/FeaturesSection';
+import AboutSection from '../components/sections/AboutSection';
+import Footer from '../components/sections/Footer';
 import geminiOCR, { blobToBase64 } from '../services/geminiOCR';
 import extractTextFromImage from '../services/ocrEngine';
 import pdfToPageImages from '../services/pdfProcessor';
@@ -178,116 +182,11 @@ const HomePage = () => {
           onClear={() => { setFiles(null); setExtractedData(null); setError(null); }}
         />
 
-        {/* Trusted By Section */}
-        <section className="py-16 px-8 bg-[var(--surface-container-low)] min-h-[200px] flex items-center">
-          <div className="max-w-7xl mx-auto w-full">
-            <p className="text-xs font-semibold tracking-[0.15em] uppercase text-[var(--text-muted)] text-center mb-10">Powering global verification for leaders</p>
-            <div className="marquee-mask flex overflow-hidden">
-              {[0, 1].map((i) => (
-                <div className="marquee-track flex gap-16 pr-16 shrink-0 min-w-max opacity-40 grayscale" key={i} aria-hidden={i === 1}>
-                  {[
-                    ['database', 'QUANTUM'],
-                    ['neurology', 'NEURALINK'],
-                    ['sync_alt', 'DATASYNC'],
-                    ['shield', 'ARMOR'],
-                    ['hub', 'NEXUS'],
-                    ['token', 'VERICHAIN'],
-                  ].map(([icon, name]) => (
-                    <div key={name} className="flex items-center gap-2 text-xl font-bold text-[var(--text-primary)] whitespace-nowrap shrink-0">
-                      <span className="material-symbols-outlined">{icon}</span>
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <TrustedBySection />
         
-        {/* Features Section */}
-        <section className="py-32 max-md:py-20 px-8 max-md:px-5 bg-[var(--bg-secondary)]">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center max-w-[640px] mx-auto mb-20">
-              <h2 className="text-4xl max-md:text-[28px] font-bold tracking-tight leading-tight text-[var(--text-primary)] mb-4">
-                Precision-engineered for <span className="text-[var(--accent-primary)]">Modern Enterprise</span>
-              </h2>
-              <p className="text-base leading-relaxed text-[var(--text-secondary)]">
-                Our architecture combines proprietary OCR engines with secure-cloud processing to redefine document intelligence.
-              </p>
-            </div>
+        <FeaturesSection />
 
-            <div className="grid grid-cols-3 max-xl:grid-cols-1 max-xl:max-w-[480px] max-xl:mx-auto gap-8">
-              {[
-                { icon: 'bolt', color: 'bg-[var(--accent-primary)]', title: 'Extreme Speed', desc: 'Latency-free extraction. Process high-resolution ID images in under 200ms using edge-optimized neural networks.', highlighted: false },
-                { icon: 'verified', color: 'bg-[var(--accent-secondary)]', title: '99.9% Accuracy', desc: 'Zero-margin for error. Our system handles glare, tilt, and low-light conditions with clinical-grade precision.', highlighted: true },
-                { icon: 'encrypted', color: 'bg-[#575f67]', title: 'Clinical Security', desc: 'Bank-grade encryption. SOC2 compliant processing ensures PII never stays on our servers longer than needed.', highlighted: false },
-              ].map((f) => (
-                <div key={f.title} className={`glass-card-effect border border-[var(--outline-variant)] rounded-3xl p-8 transition-all duration-300 shadow-[0_10px_40px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)] ${f.highlighted ? 'border-[rgba(255,92,0,0.2)] shadow-[0_10px_40px_rgba(0,0,0,0.04),0_0_0_4px_rgba(255,92,0,0.05)]' : ''}`}>
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 text-white transition-transform duration-200 group-hover:scale-110 ${f.color}`}>
-                    <span className="material-symbols-outlined !text-[28px]">{f.icon}</span>
-                  </div>
-                  <h3 className="text-2xl font-semibold tracking-tight leading-snug text-[var(--text-primary)] mb-4">{f.title}</h3>
-                  <p className="text-base leading-relaxed text-[var(--text-secondary)]">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* About Section */}
-        <section className="py-32 max-md:py-20 px-8 max-md:px-5 bg-[var(--bg-primary)] text-[var(--text-primary)]">
-          <div className="max-w-7xl mx-auto grid grid-cols-2 max-xl:grid-cols-1 max-xl:max-w-[640px] gap-24 max-xl:gap-12 items-center">
-            <div className="relative">
-              <div className="relative rounded-3xl overflow-hidden aspect-square">
-                <img
-                  className="w-full h-full object-cover"
-                  src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80"
-                  alt="Engineers working in a high-tech lab"
-                />
-                <div className="absolute inset-0 bg-[rgba(167,58,0,0.2)] mix-blend-multiply" />
-                <div className="glass-card-effect absolute bottom-6 left-6 right-6 border border-[var(--outline-variant)] rounded-2xl p-6">
-                  <p className="italic font-medium text-sm leading-relaxed text-[var(--text-primary)]">
-                    "The most accurate OCR we've tested. It handled tilted mobile photos that other services failed on entirely."
-                  </p>
-                  <div className="flex items-center gap-3 mt-4">
-                    <div className="w-10 h-10 rounded-full bg-slate-300 shrink-0" />
-                    <div>
-                      <div className="text-sm font-bold text-[var(--text-primary)]">Marcus Chen</div>
-                      <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">CTO, DataSync</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-8">
-              <h2 className="text-4xl max-md:text-[28px] font-bold tracking-tight leading-tight text-[var(--text-primary)]">
-                Designed for the <span className="text-[var(--accent-primary)]">Security-First</span> Era
-              </h2>
-              <p className="text-lg leading-relaxed text-[var(--text-secondary)]">
-                Born from a need for clinical precision in identity management, ID-OCR uses advanced computer vision to eliminate manual data entry errors.
-              </p>
-
-              <div className="flex flex-col gap-4">
-                {[
-                  ['Global Coverage', 'Support for 190+ countries and thousands of document types.'],
-                  ['Seamless Integration', 'SDKs for iOS, Android, and Web with 5-minute setup.'],
-                  ['Developer First', 'Comprehensive documentation and 24/7 technical support.'],
-                ].map(([title, desc]) => (
-                  <div key={title} className="flex items-start gap-4">
-                    <div className="w-6 h-6 rounded-full bg-[rgba(255,92,0,0.1)] flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="material-symbols-outlined !text-sm text-[var(--accent-primary)]">check</span>
-                    </div>
-                    <div>
-                      <div className="text-base font-bold text-[var(--text-primary)] mb-0.5">{title}</div>
-                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        <AboutSection />
 
       </main>
 
@@ -300,41 +199,7 @@ const HomePage = () => {
         onChange={handleFileChange}
       />
 
-      {/* Footer */}
-      <footer className="w-full py-12 px-8 bg-[var(--bg-card)] border-t border-[var(--outline-variant)]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-12 max-xl:flex-col max-xl:text-center">
-          <div className="flex flex-col gap-3 max-xl:items-center">
-            <div className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
-              <img className="shrink-0" src="/qr-logo.svg" alt="QR" width="24" height="24" />
-              IDScan AI
-            </div>
-            <p className="text-sm text-[var(--text-muted)] max-w-[280px] leading-relaxed max-xl:text-center">
-              The clinical standard for document extraction and identity verification.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-10 gap-y-4">
-            {[
-              { icon: 'image', text: 'JPG, PNG, PDF, DOCX' },
-              { icon: 'psychology', text: 'Gemini AI + Tesseract OCR' },
-              { icon: 'table_view', text: 'Excel Export' },
-              { icon: 'speed', text: 'Up to 10 files per batch' },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--accent-primary)]">{icon}</span>
-                {text}
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-col items-end max-xl:items-center gap-1">
-            <div className="text-sm text-[var(--text-muted)]">
-              © 2026 ID-OCR Converter. All rights reserved.
-            </div>
-            <div className="text-xs text-[var(--text-muted)]">
-              Developed by <a href="https://shuaaae.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] font-semibold hover:underline">Joshua Godalle</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

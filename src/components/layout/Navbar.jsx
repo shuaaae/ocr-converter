@@ -5,6 +5,12 @@ const Navbar = () => {
     return localStorage.getItem('theme') === 'dark';
   });
   const toggleRef = useRef(null);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -59,6 +65,14 @@ const Navbar = () => {
         <div className="flex items-center gap-2 text-lg font-black tracking-tight text-[var(--text-primary)]">
           <img className="shrink-0" src="/qr-logo.svg" alt="QR" width="28" height="28" />
           IDScan AI
+        </div>
+
+        <div className="hidden md:flex items-center gap-2 text-xs font-semibold tracking-[0.05em] text-[var(--text-muted)]">
+          <span className="material-symbols-outlined !text-sm text-[var(--accent-primary)]">calendar_today</span>
+          {now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+          <span className="text-[var(--outline-variant)] mx-1">|</span>
+          <span className="material-symbols-outlined !text-sm text-[var(--accent-primary)]">schedule</span>
+          {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </div>
 
         <button ref={toggleRef} className="bg-transparent border-none p-0 cursor-pointer" onClick={handleToggle} aria-label="Toggle theme">

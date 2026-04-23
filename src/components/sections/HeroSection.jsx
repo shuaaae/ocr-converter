@@ -1,38 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FileSpreadsheet, Download, ScanLine, CheckCircle, Clock, Trash2, Eye, X } from 'lucide-react';
-import ExcelJS from 'exceljs';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { FileSpreadsheet, Download, ScanLine, CheckCircle, X, Search, Trash2, Clock } from 'lucide-react';
+import useTypingAnimation from '../../hooks/useTypingAnimation';
+import { downloadExtractedExcel } from '../../utils/excelExport';
 
 const DEMO_NAMES = ['Jonathan Sterling', 'Maria Santos', 'James Nakamura', 'Elena Petrova', 'Carlos Mendez'];
 const DEMO_IDS = ['TX-992-8812', 'PH-441-6723', 'JP-108-3301', 'RU-556-9940', 'MX-773-2158'];
-
-const useTypingAnimation = (items, typingSpeed = 60, pauseMs = 2000) => {
-  const [display, setDisplay] = useState('');
-  useEffect(() => {
-    let idx = 0, charIdx = 0, deleting = false, timer;
-    const tick = () => {
-      const current = items[idx];
-      if (!deleting) {
-        charIdx++;
-        setDisplay(current.slice(0, charIdx));
-        if (charIdx === current.length) {
-          timer = setTimeout(() => { deleting = true; tick(); }, pauseMs);
-          return;
-        }
-      } else {
-        charIdx--;
-        setDisplay(current.slice(0, charIdx));
-        if (charIdx === 0) {
-          deleting = false;
-          idx = (idx + 1) % items.length;
-        }
-      }
-      timer = setTimeout(tick, deleting ? 30 : typingSpeed);
-    };
-    tick();
-    return () => clearTimeout(timer);
-  }, [items, typingSpeed, pauseMs]);
-  return display;
-};
 
 const HeroSection = ({
   onUploadClick,
@@ -49,7 +21,20 @@ const HeroSection = ({
   const typedName = useTypingAnimation(DEMO_NAMES);
   const typedId = useTypingAnimation(DEMO_IDS, 50, 2000);
   const [scanVersion, setScanVersion] = useState(0);
-  const [showAllModal, setShowAllModal] = useState(false);
+  // panelMode: 'normal' | 'closed' | 'minimized' | 'fullscreen' | 'history'
+  const [panelMode, setPanelMode] = useState('normal');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Lock body scroll when a fullscreen modal is open
+  useEffect(() => {
+    if (panelMode === 'fullscreen' || panelMode === 'historyFullscreen') {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [panelMode]);
+
   // Re-read localStorage when extractedData changes or history is cleared
   const recentScans = useMemo(() =>
     JSON.parse(localStorage.getItem('ocrScans') || '[]'),
@@ -57,78 +42,25 @@ const HeroSection = ({
     [extractedData, scanVersion]
   );
 
-  const downloadScanExcel = useCallback(async (scans, label) => {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Extracted Data');
-    const headers = ['ID NUMBER', 'FULL NAME', 'BIRTH DATE', 'ADDRESS', 'EXPIRATION OF ID'];
-    const headerRow = sheet.addRow(headers);
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, size: 11 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
-    scans.forEach((s) => {
-      const d = s.data || s;
-      sheet.addRow([d.documentNumber, d.fullName, d.dateOfBirth, d.address, d.expiryDate]);
-    });
-    sheet.columns.forEach((col) => {
-      let maxLen = 12;
-      col.eachCell({ includeEmpty: true }, (cell) => {
-        const len = cell.value ? String(cell.value).length + 2 : 12;
-        if (len > maxLen) maxLen = len;
-      });
-      col.width = Math.min(maxLen, 40);
-    });
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `IDScan_${label}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, []);
-
   const clearHistory = useCallback(() => {
     localStorage.removeItem('ocrScans');
     setScanVersion((v) => v + 1);
   }, []);
 
-  const downloadExcel = async () => {
-    if (!extractedData || extractedData.length === 0) return;
-
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Extracted Data');
-
-    const headers = ['ID NUMBER', 'FULL NAME', 'BIRTH DATE', 'ADDRESS', 'EXPIRATION OF ID'];
-    const headerRow = sheet.addRow(headers);
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, size: 11 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  // Group scans into batches for the modal
+  const allBatches = useMemo(() => {
+    const batches = [];
+    let current = null;
+    recentScans.forEach((scan) => {
+      if (!current || Math.abs(scan.timestamp - current.timestamp) > 5000) {
+        current = { timestamp: scan.timestamp, scans: [scan] };
+        batches.push(current);
+      } else {
+        current.scans.push(scan);
+      }
     });
-
-    extractedData.forEach((item) => {
-      sheet.addRow([item.documentNumber, item.fullName, item.dateOfBirth, item.address, item.expiryDate]);
-    });
-
-    // Auto-fit column widths
-    sheet.columns.forEach((col) => {
-      let maxLen = 12;
-      col.eachCell({ includeEmpty: true }, (cell) => {
-        const len = cell.value ? String(cell.value).length + 2 : 12;
-        if (len > maxLen) maxLen = len;
-      });
-      col.width = Math.min(maxLen, 40);
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `IDScan_AI_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+    return batches;
+  }, [recentScans]);
 
   // Render the glass card body content based on state
   const renderCardContent = () => {
@@ -188,7 +120,7 @@ const HeroSection = ({
           <div className="flex gap-2 pt-1">
             <button
               className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[var(--accent-primary)] border-none rounded-lg text-white text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95"
-              onClick={downloadExcel}
+              onClick={() => downloadExtractedExcel(extractedData)}
             >
               <Download size={12} />
               Download Excel
@@ -285,167 +217,12 @@ const HeroSection = ({
           </div>
         </div>
 
-        {/* Recent Conversions */}
-        {recentScans.length > 0 && (
-          <div className="col-span-full border-t border-[var(--outline-variant)] pt-4 mt-2">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
-                <Clock size={12} className="text-[var(--accent-primary)]" />
-                Recent Conversions
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowAllModal(true)} className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer bg-transparent border-none p-0">
-                  <Eye size={10} />
-                  View All
-                </button>
-                <button onClick={clearHistory} className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none p-0">
-                  <Trash2 size={10} />
-                  Clear
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto thin-scrollbar">
-              {(() => {
-                // Group scans by close timestamps (within 5s = same batch)
-                const batches = [];
-                let current = null;
-                recentScans.forEach((scan) => {
-                  if (!current || Math.abs(scan.timestamp - current.timestamp) > 5000) {
-                    current = { timestamp: scan.timestamp, scans: [scan] };
-                    batches.push(current);
-                  } else {
-                    current.scans.push(scan);
-                  }
-                });
-                return batches.map((batch) => {
-                  const date = new Date(batch.timestamp);
-                  const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                  const count = batch.scans.length;
-                  // Build a readable name from extracted full names
-                  const names = batch.scans
-                    .map((s) => (s.data?.fullName || '').split(' ')[0])
-                    .filter((n) => n && n !== 'Not');
-                  const title = names.length > 0
-                    ? names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '')
-                    : `${count} ID${count > 1 ? 's' : ''}`;
-                  return (
-                    <div key={batch.timestamp} className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-[var(--text-primary)]">{title}</span>
-                        <span className="text-[10px] text-[var(--text-muted)]">{count} ID{count > 1 ? 's' : ''} · {label}</span>
-                      </div>
-                      <button
-                        onClick={() => downloadScanExcel(batch.scans, date.toISOString().slice(0, 10))}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-[var(--accent-primary)] text-white text-[10px] font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity"
-                      >
-                        <Download size={10} />
-                        Excel
-                      </button>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
 
-  // Group scans into batches for the modal
-  const allBatches = useMemo(() => {
-    const batches = [];
-    let current = null;
-    recentScans.forEach((scan) => {
-      if (!current || Math.abs(scan.timestamp - current.timestamp) > 5000) {
-        current = { timestamp: scan.timestamp, scans: [scan] };
-        batches.push(current);
-      } else {
-        current.scans.push(scan);
-      }
-    });
-    return batches;
-  }, [recentScans]);
-
   return (
     <>
-    {/* View All Modal */}
-    {showAllModal && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowAllModal(false)}>
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-        <div
-          className="relative z-10 w-full max-w-2xl max-h-[80vh] bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--outline-variant)] flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--outline-variant)]">
-            <div className="flex items-center gap-2">
-              <Clock size={16} className="text-[var(--accent-primary)]" />
-              <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--text-primary)]">All Conversions</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.1)] text-[var(--accent-primary)] font-semibold">{allBatches.length}</span>
-            </div>
-            <button onClick={() => setShowAllModal(false)} className="p-1 rounded-lg hover:bg-[var(--surface-container)] transition-colors cursor-pointer bg-transparent border-none">
-              <X size={18} className="text-[var(--text-muted)]" />
-            </button>
-          </div>
-
-          {/* Modal Body */}
-          <div className="flex-1 overflow-y-auto thin-scrollbar p-6">
-            {allBatches.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-8">No conversions yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {allBatches.map((batch) => {
-                  const date = new Date(batch.timestamp);
-                  const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                  const count = batch.scans.length;
-                  const names = batch.scans
-                    .map((s) => s.data?.fullName || 'Unknown')
-                    .filter((n) => n !== 'Not found');
-                  return (
-                    <div key={batch.timestamp} className="p-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-[var(--text-primary)]">{count} ID{count > 1 ? 's' : ''} extracted</span>
-                            <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {names.map((name, i) => (
-                              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => downloadScanExcel(batch.scans, date.toISOString().slice(0, 10))}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
-                        >
-                          <Download size={12} />
-                          Excel
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Modal Footer */}
-          <div className="flex items-center justify-between px-6 py-3 border-t border-[var(--outline-variant)] bg-[var(--surface-container-low)]">
-            <span className="text-[10px] text-[var(--text-muted)]">{recentScans.length} total ID{recentScans.length !== 1 ? 's' : ''} across {allBatches.length} conversion{allBatches.length !== 1 ? 's' : ''}</span>
-            <button
-              onClick={() => { clearHistory(); setShowAllModal(false); }}
-              className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none p-0"
-            >
-              <Trash2 size={10} />
-              Clear All
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
     <section className="py-20 px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div className="flex flex-col gap-8 lg:text-left text-center lg:items-start items-center">
@@ -486,24 +263,339 @@ const HeroSection = ({
         </div>
 
         {/* Glass Dashboard Preview / Live Extraction Panel */}
-        <div className="relative">
-          <div className="absolute -inset-4 bg-[rgba(255,92,0,0.1)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
-          <div className="glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)]">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+        {panelMode !== 'closed' && panelMode !== 'fullscreen' && panelMode !== 'history' && (
+          <div className="relative">
+            <div className="absolute -inset-4 bg-[rgba(255,92,0,0.1)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
+            <div className={`glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)] ${panelMode === 'minimized' ? 'panel-animate-minimize' : 'panel-animate-open'}`}>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
+                <div className="flex gap-2">
+                  <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-red-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Close">
+                    <span className="material-symbols-outlined !text-[10px] text-red-800">close</span>
+                  </button>
+                  <button onClick={() => setPanelMode(panelMode === 'minimized' ? 'normal' : 'minimized')} className="w-4 h-4 rounded-full bg-amber-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Minimize">
+                    <span className="material-symbols-outlined !text-[10px] text-amber-800">remove</span>
+                  </button>
+                  <button onClick={() => setPanelMode('fullscreen')} className="w-4 h-4 rounded-full bg-emerald-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Full Screen">
+                    <span className="material-symbols-outlined !text-[10px] text-emerald-800">fullscreen</span>
+                  </button>
+                </div>
+                <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+                  {hasFiles || hasResults || isProcessing ? 'Live — ID Analysis' : 'Dashboard — ID Analysis'}
+                </div>
               </div>
-              <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
-                {hasFiles || hasResults || isProcessing ? 'Live — ID Analysis' : 'Dashboard — ID Analysis'}
+              {panelMode === 'minimized' ? (
+                <div className="flex items-center gap-4 p-4">
+                  <img className="w-16 h-10 object-cover object-top rounded-lg border border-[var(--outline-variant)]" src="/ID.png" alt="ID Preview" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[var(--text-muted)]">ID Analysis Panel</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">Click yellow to expand</span>
+                  </div>
+                </div>
+              ) : (
+                renderCardContent()
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Closed state — macOS dock with glass taskbar */}
+        {panelMode === 'closed' && (
+          <div className="flex items-center justify-center">
+            <div className="glass-card-effect flex items-end gap-5 px-5 py-3 rounded-2xl border border-[var(--outline-variant)] shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setPanelMode('normal')}
+                  className="dock-icon-bounce w-14 h-14 rounded-[14px] bg-gradient-to-b from-[var(--accent-primary)] to-[#c24500] border-none p-0 cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(255,92,0,0.3)] transition-transform hover:scale-110 active:scale-95"
+                >
+                  <span className="material-symbols-outlined !text-[24px] text-white">scan</span>
+                </button>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)]">Dashboard</span>
+              </div>
+              <div className="w-px h-10 bg-[var(--outline-variant)] opacity-50 self-center" />
+              <div className="flex flex-col items-center gap-1.5 relative">
+                <button
+                  onClick={() => { setPanelMode('history'); setSearchQuery(''); }}
+                  className="dock-icon-bounce w-14 h-14 rounded-[14px] bg-gradient-to-b from-[#6b7280] to-[#374151] border-none p-0 cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(55,65,81,0.3)] transition-transform hover:scale-110 active:scale-95"
+                >
+                  <span className="material-symbols-outlined !text-[24px] text-white">history</span>
+                </button>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)]">History</span>
+                {recentScans.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">{recentScans.length > 99 ? '99+' : recentScans.length}</span>
+                )}
               </div>
             </div>
+          </div>
+        )}
+        {/* History Panel */}
+        {panelMode === 'history' && (
+          <div className="relative">
+            <div className="absolute -inset-4 bg-[rgba(100,100,100,0.08)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
+            <div className="glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col panel-animate-open">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
+                <div className="flex gap-2">
+                  <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-red-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Close">
+                    <span className="material-symbols-outlined !text-[10px] text-red-800">close</span>
+                  </button>
+                  <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-amber-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Minimize">
+                    <span className="material-symbols-outlined !text-[10px] text-amber-800">remove</span>
+                  </button>
+                  <button onClick={() => setPanelMode('historyFullscreen')} className="w-4 h-4 rounded-full bg-emerald-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Full Screen">
+                    <span className="material-symbols-outlined !text-[10px] text-emerald-800">fullscreen</span>
+                  </button>
+                </div>
+                <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+                  History — Conversions
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="px-4 py-3 border-b border-[var(--outline-variant)]">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-container-low)] border border-[var(--outline-variant)]">
+                  <Search size={14} className="text-[var(--text-muted)] shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, ID number, or date..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="p-0 bg-transparent border-none cursor-pointer">
+                      <X size={12} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* History Body */}
+              <div className="flex-1 overflow-y-auto thin-scrollbar p-4 max-h-[360px]">
+                {(() => {
+                  const q = searchQuery.toLowerCase().trim();
+                  const filtered = q
+                    ? allBatches.filter((batch) =>
+                        batch.scans.some((s) => {
+                          const d = s.data || {};
+                          return (
+                            (d.fullName || '').toLowerCase().includes(q) ||
+                            (d.documentNumber || '').toLowerCase().includes(q) ||
+                            (d.address || '').toLowerCase().includes(q) ||
+                            new Date(batch.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase().includes(q)
+                          );
+                        })
+                      )
+                    : allBatches;
+
+                  if (filtered.length === 0) {
+                    return <p className="text-sm text-[var(--text-muted)] text-center py-8">{q ? 'No results found.' : 'No conversions yet.'}</p>;
+                  }
+
+                  return (
+                    <div className="flex flex-col gap-3">
+                      {filtered.map((batch) => {
+                        const date = new Date(batch.timestamp);
+                        const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const count = batch.scans.length;
+                        const names = batch.scans
+                          .map((s) => s.data?.fullName || 'Unknown')
+                          .filter((n) => n !== 'Not found');
+                        return (
+                          <div key={batch.timestamp} className="p-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-bold text-[var(--text-primary)]">{count} ID{count > 1 ? 's' : ''} extracted</span>
+                                  <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                  {names.map((name, i) => (
+                                    <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => downloadExtractedExcel(batch.scans.map((s) => s.data || s))}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-[10px] font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
+                              >
+                                <Download size={12} />
+                                Excel
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* History Footer */}
+              <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--outline-variant)]">
+                <span className="text-[10px] text-[var(--text-muted)]">{recentScans.length} total ID{recentScans.length !== 1 ? 's' : ''} across {allBatches.length} conversion{allBatches.length !== 1 ? 's' : ''}</span>
+                <button
+                  onClick={() => { clearHistory(); setPanelMode('closed'); }}
+                  className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none p-0"
+                >
+                  <Trash2 size={10} />
+                  Clear All
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+
+    {/* Fullscreen Modal */}
+    {panelMode === 'fullscreen' && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" onClick={() => setPanelMode('normal')}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          className="relative z-10 w-full max-w-3xl max-h-[85vh] glass-card-effect border border-[var(--outline-variant)] rounded-3xl p-4 shadow-2xl overflow-hidden flex flex-col panel-animate-fullscreen"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
+            <div className="flex gap-2">
+              <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-red-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Close">
+                <span className="material-symbols-outlined !text-[10px] text-red-800">close</span>
+              </button>
+              <button onClick={() => setPanelMode('minimized')} className="w-4 h-4 rounded-full bg-amber-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Minimize">
+                <span className="material-symbols-outlined !text-[10px] text-amber-800">remove</span>
+              </button>
+              <button onClick={() => setPanelMode('normal')} className="w-4 h-4 rounded-full bg-emerald-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Exit Full Screen">
+                <span className="material-symbols-outlined !text-[10px] text-emerald-800">fullscreen</span>
+              </button>
+            </div>
+            <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+              {hasFiles || hasResults || isProcessing ? 'Live — ID Analysis' : 'Dashboard — ID Analysis'}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto thin-scrollbar">
             {renderCardContent()}
           </div>
         </div>
       </div>
-    </section>
+    )}
+
+    {/* History Fullscreen Modal */}
+    {panelMode === 'historyFullscreen' && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" onClick={() => setPanelMode('history')}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          className="relative z-10 w-full max-w-3xl max-h-[85vh] glass-card-effect border border-[var(--outline-variant)] rounded-3xl p-4 shadow-2xl overflow-hidden flex flex-col panel-animate-fullscreen"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
+            <div className="flex gap-2">
+              <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-red-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Close">
+                <span className="material-symbols-outlined !text-[10px] text-red-800">close</span>
+              </button>
+              <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-amber-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Minimize">
+                <span className="material-symbols-outlined !text-[10px] text-amber-800">remove</span>
+              </button>
+              <button onClick={() => setPanelMode('history')} className="w-4 h-4 rounded-full bg-emerald-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Exit Full Screen">
+                <span className="material-symbols-outlined !text-[10px] text-emerald-800">fullscreen</span>
+              </button>
+            </div>
+            <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+              History — Conversions
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="px-4 py-3 border-b border-[var(--outline-variant)]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-container-low)] border border-[var(--outline-variant)]">
+              <Search size={14} className="text-[var(--text-muted)] shrink-0" />
+              <input
+                type="text"
+                placeholder="Search by name, ID number, or date..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="p-0 bg-transparent border-none cursor-pointer">
+                  <X size={12} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* History Body */}
+          <div className="flex-1 overflow-y-auto thin-scrollbar p-6">
+            {(() => {
+              const q = searchQuery.toLowerCase().trim();
+              const filtered = q
+                ? allBatches.filter((batch) =>
+                    batch.scans.some((s) => {
+                      const d = s.data || {};
+                      return (
+                        (d.fullName || '').toLowerCase().includes(q) ||
+                        (d.documentNumber || '').toLowerCase().includes(q) ||
+                        (d.address || '').toLowerCase().includes(q) ||
+                        new Date(batch.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase().includes(q)
+                      );
+                    })
+                  )
+                : allBatches;
+
+              if (filtered.length === 0) {
+                return <p className="text-sm text-[var(--text-muted)] text-center py-8">{q ? 'No results found.' : 'No conversions yet.'}</p>;
+              }
+
+              return (
+                <div className="flex flex-col gap-3">
+                  {filtered.map((batch) => {
+                    const date = new Date(batch.timestamp);
+                    const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    const count = batch.scans.length;
+                    const names = batch.scans
+                      .map((s) => s.data?.fullName || 'Unknown')
+                      .filter((n) => n !== 'Not found');
+                    return (
+                      <div key={batch.timestamp} className="p-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-[var(--text-primary)]">{count} ID{count > 1 ? 's' : ''} extracted</span>
+                              <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {names.map((name, i) => (
+                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => downloadExtractedExcel(batch.scans.map((s) => s.data || s))}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
+                          >
+                            <Download size={12} />
+                            Excel
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* History Footer */}
+          <div className="flex items-center justify-between px-6 py-3 border-t border-[var(--outline-variant)]">
+            <span className="text-[10px] text-[var(--text-muted)]">{recentScans.length} total ID{recentScans.length !== 1 ? 's' : ''} across {allBatches.length} conversion{allBatches.length !== 1 ? 's' : ''}</span>
+            <button
+              onClick={() => { clearHistory(); setPanelMode('closed'); }}
+              className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none p-0"
+            >
+              <Trash2 size={10} />
+              Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 };
