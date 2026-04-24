@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { FileSpreadsheet, Download, ScanLine, CheckCircle, X, Search, Trash2, Clock, Send, Bot, User } from 'lucide-react';
 import useTypingAnimation from '../../hooks/useTypingAnimation';
-import { downloadExtractedExcel } from '../../utils/excelExport';
+import { downloadExtractedExcel, downloadCorExcel } from '../../utils/excelExport';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const MOTIVATIONAL_QUOTES = [
@@ -27,6 +27,9 @@ const HeroSection = ({
   error,
   onProcess,
   onClear,
+  onDownloadExcel,
+  hasCorDocuments,
+  hasIdDocuments,
 }) => {
   const hasFiles = files && files.length > 0;
   const hasResults = extractedData && extractedData.length > 0;
@@ -130,43 +133,69 @@ const HeroSection = ({
 
     // State: Results ready
     if (hasResults) {
+      // Determine if all documents are COR for display label
+      const allCor = extractedData.every(item => item._documentType === 'COR');
+      const docTypeLabel = allCor ? 'COR' : (hasCorDocuments ? 'Mixed' : 'ID');
+
       return (
         <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
           <div className="flex items-center gap-2 pb-2 border-b border-[var(--outline-variant)]">
             <CheckCircle size={16} className="text-green-500" />
             <span className="text-[11px] font-bold text-[var(--text-primary)]">
-              {extractedData.length} ID{extractedData.length > 1 ? 's' : ''} extracted
+              {extractedData.length} {docTypeLabel}{extractedData.length > 1 ? 's' : ''} extracted
             </span>
+            {hasCorDocuments && hasIdDocuments && (
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Mixed documents detected</span>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto flex flex-col gap-2">
-            {extractedData.map((item, i) => (
-              <div key={i} className="rounded-xl border border-[var(--outline-variant)] overflow-hidden">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-container-low)] text-[10px] font-semibold text-[var(--text-secondary)] border-b border-[var(--outline-variant)]">
-                  <FileSpreadsheet size={12} />
-                  <span className="truncate">{item._fileName || `Document ${i + 1}`}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-0">
-                  {[
+            {extractedData.map((item, i) => {
+              const isCor = item._documentType === 'COR';
+              const displayFields = isCor
+                ? [
+                    ['First Name', item.firstName],
+                    ['Middle Name', item.middleName],
+                    ['Last Name', item.lastName],
+                    ['Birth Date', item.dateOfBirth],
+                    ['Address', item.address],
+                    ['ID Number', item.documentNumber],
+                    ['Age', item.age],
+                    ['Gender', item.gender],
+                    ['Marital Status', item.maritalStatus],
+                    ['BIR Reg. Date', item.birRegistrationDate],
+                  ]
+                : [
                     ['Full Name', item.fullName],
                     ['Birth Date', item.dateOfBirth],
                     ['Address', item.address],
                     ['ID Number', item.documentNumber],
                     ['Nationality', item.nationality],
                     ['Expiry', item.expiryDate],
-                  ].map(([label, value], j) => (
-                    <div key={j} className="flex flex-col gap-0 px-3 py-1.5 border-b border-[var(--outline-variant)] last:border-b-0 [&:nth-last-child(-n+2)]:border-b-0">
-                      <span className="text-[8px] font-semibold tracking-[0.08em] uppercase text-[var(--text-muted)]">{label}</span>
-                      <span className="text-[11px] font-semibold text-[var(--text-primary)] truncate">{value}</span>
-                    </div>
-                  ))}
+                  ];
+
+              return (
+                <div key={i} className="rounded-xl border border-[var(--outline-variant)] overflow-hidden">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-container-low)] text-[10px] font-semibold text-[var(--text-secondary)] border-b border-[var(--outline-variant)]">
+                    <FileSpreadsheet size={12} />
+                    <span className="truncate">{item._fileName || `Document ${i + 1}`}</span>
+                    {isCor && <span className="ml-auto px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[8px]">COR</span>}
+                  </div>
+                  <div className={`grid gap-0 ${isCor ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                    {displayFields.map(([label, value], j) => (
+                      <div key={j} className="flex flex-col gap-0 px-3 py-1.5 border-b border-[var(--outline-variant)] last:border-b-0 [&:nth-last-child(-n+2)]:border-b-0">
+                        <span className="text-[8px] font-semibold tracking-[0.08em] uppercase text-[var(--text-muted)]">{label}</span>
+                        <span className="text-[11px] font-semibold text-[var(--text-primary)] truncate">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex gap-2 pt-1">
             <button
               className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[var(--accent-primary)] border-none rounded-lg text-white text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95"
-              onClick={() => downloadExtractedExcel(extractedData)}
+              onClick={onDownloadExcel}
             >
               <Download size={12} />
               Download Excel
@@ -282,10 +311,14 @@ const HeroSection = ({
             <span className="text-[72px] max-lg:text-5xl max-md:text-4xl font-extrabold tracking-[-0.04em] text-[var(--accent-primary)] leading-[1.1]">Clinical Precision</span>
           </h1>
 
-          <p className="text-lg max-md:text-base leading-relaxed text-[var(--text-secondary)] max-w-[540px] lg:mx-0 mx-auto">
-            Automate identity verification with 99.9% accuracy. Upload single or bulk 
-            ID photos, PDFs, or Word documents. Our AI extracts Name, Address, Birthday, 
-            ID Number &amp; more — then exports everything to Excel.
+          <p className="text-lg max-md:text-base leading-[1.7] text-[var(--text-secondary)] max-w-[540px] lg:mx-0 mx-auto">
+            Automate identity verification with 99.9% accuracy. Upload single or bulk{' '}
+            <strong className="text-[var(--accent-primary)]">ID</strong> or{' '}
+            <strong className="text-[var(--accent-primary)]">COR (Certificate of Registration)</strong>{' '}
+            documents — photos, PDFs, or Word files.
+            <br className="hidden sm:block" />
+            Our AI auto-detects document type and extracts Name, Address, ID Number,
+            BIR Registration Date &amp; more — then exports everything to Excel.
           </p>
           <p className="text-sm leading-relaxed text-[var(--text-muted)] max-w-[540px] lg:mx-0 mx-auto flex items-center gap-1.5">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent-primary)]">lightbulb</span>
@@ -298,7 +331,7 @@ const HeroSection = ({
               onClick={onUploadClick}
             >
               <span className="material-symbols-outlined">upload_file</span>
-              Upload ID
+              Upload ID or COR
             </button>
             {error && !hasFiles && (
               <div className="px-4 py-2 bg-[rgba(239,68,68,0.08)] rounded-lg border border-[rgba(239,68,68,0.15)]">
@@ -402,7 +435,7 @@ const HeroSection = ({
                   </button>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
-                  Hi Ma'am RIA, This is Joshua your AI Assistant! 😉
+                  Hi There!, This is Joshua your AI Assistant! 😉
                 </div>
               </div>
 
@@ -511,10 +544,13 @@ const HeroSection = ({
                     ? allBatches.filter((batch) =>
                         batch.scans.some((s) => {
                           const d = s.data || {};
+                          const nameField = d._documentType === 'COR' ? d.firstName : d.fullName;
+                          const docType = d._documentType || 'ID';
                           return (
-                            (d.fullName || '').toLowerCase().includes(q) ||
+                            (nameField || '').toLowerCase().includes(q) ||
                             (d.documentNumber || '').toLowerCase().includes(q) ||
                             (d.address || '').toLowerCase().includes(q) ||
+                            docType.toLowerCase().includes(q) ||
                             new Date(batch.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase().includes(q)
                           );
                         })
@@ -531,26 +567,41 @@ const HeroSection = ({
                         const date = new Date(batch.timestamp);
                         const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                         const count = batch.scans.length;
+                        // Check if batch contains COR documents
+                        const hasCor = batch.scans.some(s => s.data?._documentType === 'COR');
+                        const allCor = batch.scans.every(s => s.data?._documentType === 'COR');
+                        const docTypeLabel = allCor ? 'COR' : (hasCor ? 'Mixed' : 'ID');
                         const names = batch.scans
-                          .map((s) => s.data?.fullName || 'Unknown')
-                          .filter((n) => n !== 'Not found');
+                          .map((s) => {
+                            const d = s.data || {};
+                            return d._documentType === 'COR' ? d.firstName : d.fullName;
+                          })
+                          .filter((n) => n && n !== 'Not found');
                         return (
-                          <div key={batch.timestamp} className="p-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
-                            <div className="flex items-start justify-between gap-3">
+                          <div key={batch.timestamp} className="p-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
+                            <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-xs font-bold text-[var(--text-primary)]">{count} ID{count > 1 ? 's' : ''} extracted</span>
+                                  <span className="text-xs font-bold text-[var(--text-primary)]">{count} {docTypeLabel}{count > 1 ? 's' : ''} extracted</span>
                                   <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
+                                  {hasCor && !allCor && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Mixed</span>}
+                                  {allCor && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">COR</span>}
                                 </div>
-                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                <div className="flex flex-wrap gap-1.5 mt-2">
                                   {names.map((name, i) => (
                                     <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
                                   ))}
                                 </div>
                               </div>
                               <button
-                                onClick={() => downloadExtractedExcel(batch.scans.map((s) => s.data || s))}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-[10px] font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
+                                onClick={() => {
+                                  if (allCor) {
+                                    downloadCorExcel(batch.scans.map((s) => s.data || s));
+                                  } else {
+                                    downloadExtractedExcel(batch.scans.map((s) => s.data || s));
+                                  }
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
                               >
                                 <Download size={12} />
                                 Excel
@@ -666,10 +717,13 @@ const HeroSection = ({
                 ? allBatches.filter((batch) =>
                     batch.scans.some((s) => {
                       const d = s.data || {};
+                      const nameField = d._documentType === 'COR' ? d.firstName : d.fullName;
+                      const docType = d._documentType || 'ID';
                       return (
-                        (d.fullName || '').toLowerCase().includes(q) ||
+                        (nameField || '').toLowerCase().includes(q) ||
                         (d.documentNumber || '').toLowerCase().includes(q) ||
                         (d.address || '').toLowerCase().includes(q) ||
+                        docType.toLowerCase().includes(q) ||
                         new Date(batch.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase().includes(q)
                       );
                     })
@@ -686,16 +740,25 @@ const HeroSection = ({
                     const date = new Date(batch.timestamp);
                     const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                     const count = batch.scans.length;
+                    // Check if batch contains COR documents
+                    const hasCor = batch.scans.some(s => s.data?._documentType === 'COR');
+                    const allCor = batch.scans.every(s => s.data?._documentType === 'COR');
+                    const docTypeLabel = allCor ? 'COR' : (hasCor ? 'Mixed' : 'ID');
                     const names = batch.scans
-                      .map((s) => s.data?.fullName || 'Unknown')
-                      .filter((n) => n !== 'Not found');
+                      .map((s) => {
+                        const d = s.data || {};
+                        return d._documentType === 'COR' ? d.firstName : d.fullName;
+                      })
+                      .filter((n) => n && n !== 'Not found');
                     return (
                       <div key={batch.timestamp} className="p-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-bold text-[var(--text-primary)]">{count} ID{count > 1 ? 's' : ''} extracted</span>
+                              <span className="text-xs font-bold text-[var(--text-primary)]">{count} {docTypeLabel}{count > 1 ? 's' : ''} extracted</span>
                               <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
+                              {hasCor && !allCor && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Mixed</span>}
+                              {allCor && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">COR</span>}
                             </div>
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {names.map((name, i) => (
@@ -704,7 +767,13 @@ const HeroSection = ({
                             </div>
                           </div>
                           <button
-                            onClick={() => downloadExtractedExcel(batch.scans.map((s) => s.data || s))}
+                            onClick={() => {
+                              if (allCor) {
+                                downloadCorExcel(batch.scans.map((s) => s.data || s));
+                              } else {
+                                downloadExtractedExcel(batch.scans.map((s) => s.data || s));
+                              }
+                            }}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
                           >
                             <Download size={12} />

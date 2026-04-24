@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim();
 const PLACEHOLDER_API_KEY = 'YOUR_GEMINI_API_KEY_HERE';
 
-const REQUIRED_FIELDS = [
+const ID_REQUIRED_FIELDS = [
   'fullName',
   'lastName',
   'firstName',
@@ -13,6 +13,19 @@ const REQUIRED_FIELDS = [
   'address',
   'documentNumber',
   'expiryDate',
+];
+
+const COR_REQUIRED_FIELDS = [
+  'firstName',
+  'middleName',
+  'lastName',
+  'dateOfBirth',
+  'address',
+  'documentNumber',
+  'age',
+  'gender',
+  'maritalStatus',
+  'birRegistrationDate',
 ];
 
 /**
@@ -62,34 +75,52 @@ const geminiOCR = async ({ file, base64, mimeType, ocrText } = {}) => {
     : '';
 
   const prompt = `
-First, determine if this image contains any valid identity documents (e.g. government-issued ID cards, passports, driver's licenses, national IDs, voter IDs, or similar official identification documents).
+First, determine the type of document in this image. The document can be either:
+1. An ID document (government-issued ID cards, passports, driver's licenses, national IDs, voter IDs, or similar official identification documents)
+2. A COR (Certificate of Registration) document from BIR (Bureau of Internal Revenue)
 
-If the image does NOT contain any identity document, return exactly:
-{"isIdDocument": false, "reason": "Brief explanation of what the image shows instead"}
+If the image does NOT contain either type of document, return exactly:
+{"documentType": "none", "reason": "Brief explanation of what the image shows instead"}
 
-If the image DOES contain identity documents, analyze it carefully. It may contain ONE or MULTIPLE ID documents (e.g. several IDs pasted on the same page).
+If the image contains ID DOCUMENTS:
+- Analyze carefully. It may contain ONE or MULTIPLE ID documents.
 ${ocrHint}
-For EACH ID document you find in the image, extract these fields:
-- fullName: Full name of the person exactly as printed on the ID
-- lastName: The person's surname / family name (analyze the full name carefully to determine which part is the last name based on the ID format and cultural naming conventions)
-- firstName: The person's given name / first name
-- middleName: The person's middle name (if present)
-- dateOfBirth: Date of birth
-- nationality: Nationality or citizenship
-- address: Complete address
-- documentNumber: ID number, passport number, or document number
-- expiryDate: Expiration date of the document
+- For EACH ID document, extract these fields:
+  - fullName: Full name of the person exactly as printed on the ID
+  - lastName: The person's surname / family name
+  - firstName: The person's given name / first name
+  - middleName: The person's middle name (if present)
+  - dateOfBirth: Date of birth
+  - nationality: Nationality or citizenship
+  - address: Complete address
+  - documentNumber: ID number, passport number, or document number
+  - expiryDate: Expiration date of the document
+
+Return: {"documentType": "ID", "data": [{"fullName":"...","lastName":"...","firstName":"...","middleName":"...","dateOfBirth":"...","nationality":"...","address":"...","documentNumber":"...","expiryDate":"..."}]}
+
+If the image contains COR DOCUMENTS:
+- Analyze carefully. It may contain ONE or MULTIPLE COR documents.
+${ocrHint}
+- For EACH COR document, extract these fields:
+  - firstName: First name / given name
+  - middleName: Middle name (if present)
+  - lastName: Last name / surname
+  - dateOfBirth: Date of birth (may be labeled as "Birthday", "Date of Birth", "Bday")
+  - address: Complete address
+  - documentNumber: BIR Registration Number / TIN (Tax Identification Number)
+  - age: Age of the person
+  - gender: Gender (Male/Female)
+  - maritalStatus: Marital status (Single, Married, Widowed, etc.)
+  - birRegistrationDate: BIR Registration Date (when the COR was registered)
+
+Return: {"documentType": "COR", "data": [{"firstName":"...","middleName":"...","lastName":"...","dateOfBirth":"...","address":"...","documentNumber":"...","age":"...","gender":"...","maritalStatus":"...","birRegistrationDate":"..."}]}
 
 IMPORTANT for name parsing:
-- For Filipino IDs: Names are typically formatted as "LAST NAME, FIRST NAME MIDDLE NAME" — parse accordingly.
-- For Western IDs: Names are typically "FIRST NAME MIDDLE NAME LAST NAME".
-- For other formats: Use context clues from the ID layout, labels, and cultural conventions to accurately determine which parts are first, middle, and last names.
-- If the ID explicitly labels name parts (e.g. "Surname:", "Given Name:"), use those labels.
+- For Filipino documents: Names are typically formatted as "LAST NAME, FIRST NAME MIDDLE NAME" — parse accordingly.
+- For Western documents: Names are typically "FIRST NAME MIDDLE NAME LAST NAME".
+- If the document explicitly labels name parts (e.g. "Surname:", "Given Name:"), use those labels.
 
 If a field is not found, use "Not found" as the value.
-
-Return a JSON object with:
-{"isIdDocument": true, "data": [{"fullName":"...","lastName":"...","firstName":"...","middleName":"...","dateOfBirth":"...","nationality":"...","address":"...","documentNumber":"...","expiryDate":"..."}]}
 
 Return ONLY valid JSON without markdown formatting. Do not include extra text.
 `;
@@ -109,31 +140,42 @@ Return ONLY valid JSON without markdown formatting. Do not include extra text.
     const text = response.text();
     const parsed = parseGeminiJson(text);
 
-    // Check if image was rejected as non-ID
-    if (parsed && parsed.isIdDocument === false) {
-      throw new Error(`This doesn't appear to be an ID document. ${parsed.reason || 'Please upload a valid government-issued ID, passport, or driver\'s license.'}`);
+    // Check if image was rejected as non-document
+    if (parsed && parsed.documentType === 'none') {
+      throw new Error(`This doesn't appear to be a valid document. ${parsed.reason || 'Please upload a valid government-issued ID, passport, driver\'s license, or BIR Certificate of Registration.'}`);
     }
 
-    // Handle new format with isIdDocument wrapper
+    // Handle new format with documentType wrapper
     let items;
-    if (parsed && parsed.isIdDocument === true && Array.isArray(parsed.data)) {
+    let documentType = 'ID'; // Default to ID for backward compatibility
+
+    if (parsed && parsed.documentType && Array.isArray(parsed.data)) {
+      documentType = parsed.documentType;
       items = parsed.data;
+    } else if (parsed && parsed.isIdDocument === true && Array.isArray(parsed.data)) {
+      items = parsed.data;
+    } else if (parsed && parsed.isIdDocument === false) {
+      throw new Error(`This doesn't appear to be a valid document.`);
     } else if (Array.isArray(parsed)) {
       items = parsed;
     } else {
       items = [parsed];
     }
 
+    // Determine which fields to validate based on document type
+    const requiredFields = documentType === 'COR' ? COR_REQUIRED_FIELDS : ID_REQUIRED_FIELDS;
+
     // Extra validation: reject if all fields are "Not found"
-    const normalized = items.map(normalizeExtractedData);
+    const normalized = items.map((item) => normalizeExtractedData(item, requiredFields));
     const allEmpty = normalized.every((item) =>
-      REQUIRED_FIELDS.every((f) => item[f] === 'Not found')
+      requiredFields.every((f) => item[f] === 'Not found')
     );
     if (allEmpty) {
-      throw new Error('No ID information could be extracted. Please ensure the image contains a clear, readable identity document.');
+      throw new Error('No information could be extracted. Please ensure the image contains a clear, readable document.');
     }
 
-    return normalized;
+    // Add documentType to each item
+    return normalized.map(item => ({ ...item, _documentType: documentType }));
   } catch (error) {
     console.error('Gemini OCR Error:', error);
     throw new Error(error.message || 'Failed to extract data from image. Please check your API key and try again.');
@@ -159,8 +201,8 @@ const parseGeminiJson = (text) => {
   throw new Error('Could not parse response from Gemini.');
 };
 
-const normalizeExtractedData = (data) => {
-  return REQUIRED_FIELDS.reduce((normalized, field) => {
+const normalizeExtractedData = (data, requiredFields = ID_REQUIRED_FIELDS) => {
+  return requiredFields.reduce((normalized, field) => {
     normalized[field] = typeof data?.[field] === 'string' && data[field].trim()
       ? data[field].trim()
       : 'Not found';

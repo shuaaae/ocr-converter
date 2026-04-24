@@ -9,6 +9,7 @@ import geminiOCR, { blobToBase64 } from '../services/geminiOCR';
 import extractTextFromImage from '../services/ocrEngine';
 import pdfToPageImages from '../services/pdfProcessor';
 import docxToImages from '../services/docxProcessor';
+import { downloadExtractedExcel, downloadCorExcel } from '../utils/excelExport';
 
 
 const MAX_FILES = 10;
@@ -146,12 +147,14 @@ const HomePage = () => {
 
       // Save scans to localStorage
       const newScans = results.map((data) => {
-        const scanName = data.fullName && data.fullName !== 'Not found'
-          ? data.fullName.split(' ')[0]
+        const docType = data._documentType || 'ID';
+        const nameField = docType === 'COR' ? data.firstName : data.fullName;
+        const scanName = nameField && nameField !== 'Not found'
+          ? nameField.split(' ')[0]
           : 'Unknown';
         return {
           id: Date.now() + Math.random(),
-          documentType: `ID - ${scanName}`,
+          documentType: `${docType} - ${scanName}`,
           timestamp: Date.now(),
           data,
         };
@@ -166,12 +169,32 @@ const HomePage = () => {
     }
   };
 
+  // Determine if extracted data contains COR documents
+  const hasCorDocuments = extractedData?.some(item => item._documentType === 'COR');
+  const hasIdDocuments = extractedData?.some(item => item._documentType === 'ID' || !item._documentType);
+
+  // Handle Excel download based on document type
+  const handleDownloadExcel = async () => {
+    if (!extractedData || extractedData.length === 0) return;
+
+    // If all documents are COR, use COR export
+    // If mixed or all ID, use ID export
+    const allCor = extractedData.every(item => item._documentType === 'COR');
+
+    if (allCor) {
+      await downloadCorExcel(extractedData);
+    } else {
+      // For ID or mixed, use ID export
+      await downloadExtractedExcel(extractedData);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      
+
       <main className="flex-1 pt-20">
-        <HeroSection 
+        <HeroSection
           onUploadClick={handleUploadClick}
           files={files}
           extractedData={extractedData}
@@ -180,6 +203,9 @@ const HomePage = () => {
           error={error}
           onProcess={handleProcess}
           onClear={() => { setFiles(null); setExtractedData(null); setError(null); }}
+          onDownloadExcel={handleDownloadExcel}
+          hasCorDocuments={hasCorDocuments}
+          hasIdDocuments={hasIdDocuments}
         />
 
         <TrustedBySection />
