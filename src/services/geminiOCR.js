@@ -9,6 +9,8 @@ const KNOWN_FIELDS = {
 export const EXTRACTION_PROMPT = `
 You extract structured information from uploaded documents. Analyze every supplied page in order as one logical document.
 
+CRITICAL: Return ONLY a raw JSON object. Do NOT wrap it in markdown code blocks. Do NOT add any explanatory text before or after the JSON.
+
 Return exactly one JSON object with this shape:
 {"documentType":"specific human-readable type","data":{}}
 
@@ -30,18 +32,42 @@ Known document schemas:
 - Personal Data Sheet / CS Form 212: use documentType "PDS" and preserve its sections as nested objects or arrays, including personalInformation, familyBackground, educationalBackground, civilServiceEligibility, workExperience, voluntaryWork, learningAndDevelopment, otherInformation, questions, references, and governmentIssuedId when present.
 
 For Filipino names, respect explicit labels. When an unlabeled name is printed as LAST NAME, FIRST NAME MIDDLE NAME, parse that order carefully.
-Return valid JSON only.
+
+OUTPUT FORMAT: Return ONLY the JSON object. No markdown, no code blocks, no explanations. Just the raw JSON starting with { and ending with }.
 `;
 
 export const parseDocumentResponse = (text) => {
   let parsed;
+  
+  // Clean the text first - remove any BOM or invisible characters
+  const cleanText = text.trim().replace(/^\uFEFF/, '');
+  
   try {
-    parsed = JSON.parse(text);
-  } catch {
-    const objectMatch = text.match(/\{[\s\S]*\}/);
-    if (!objectMatch) throw new Error('The AI returned an invalid JSON response. Please try again.');
-    try { parsed = JSON.parse(objectMatch[0]); }
-    catch { throw new Error('The AI returned an invalid JSON response. Please try again.'); }
+    parsed = JSON.parse(cleanText);
+  } catch (firstError) {
+    // Try to extract JSON from markdown code blocks
+    const codeBlockMatch = cleanText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+      try { 
+        parsed = JSON.parse(codeBlockMatch[1]); 
+      } catch (codeBlockError) {
+        // Silent fallback
+      }
+    }
+    
+    // If still no success, try to find the largest valid JSON object
+    if (!parsed) {
+      const objectMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (!objectMatch) {
+        throw new Error('The AI returned an invalid JSON response. Please try again.');
+      }
+      
+      try { 
+        parsed = JSON.parse(objectMatch[0]); 
+      } catch (regexError) {
+        throw new Error('The AI returned an invalid JSON response. Please try again.');
+      }
+    }
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -104,27 +130,55 @@ const geminiOCR = async (input = {}) => {
   if (pages.some(page => !page.base64)) throw new Error('A document page could not be prepared for extraction.');
 
   try {
-    const response = await fetch('/api/extract', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pages }),
-    });
-    if (response.status === 404 && import.meta.env?.DEV) {
-      const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY || '').trim();
-      if (!apiKey) throw new Error('Add VITE_GEMINI_API_KEY to .env.local, then restart the development server.');
-      const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-        model: 'gemini-2.5-flash-lite',
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 8192 },
+    const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY || '').trim();
+    if (!apiKey) throw new Error('Add VITE_GEMINI_API_KEY to .env.local, then restart the development server.');
+    
+    // Initialize Gemini AI
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Try to auto-detect the best available model
+    let modelToUse = 'gemini-1.5-flash'; // Default fallback
+    
+    try {
+      // Only attempt model discovery in development, and without logging sensitive data
+      const listResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': apiKey }
       });
-      const result = await model.generateContent(buildDocumentParts(pages));
-      return [parseDocumentResponse(result.response.text())];
+      
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        const visionModels = listData.models?.filter(m => 
+          m.supportedGenerationMethods?.includes('generateContent') &&
+          (m.name.includes('vision') || m.name.includes('pro') || m.name.includes('flash'))
+        ) || [];
+        
+        if (visionModels.length > 0) {
+          modelToUse = visionModels[0].name.replace('models/', '');
+        }
+      }
+    } catch {
+      // Silently use fallback model
     }
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || 'The document service is temporarily unavailable. Please try again.');
-    return [parseDocumentResponse(payload.text)];
+    
+    // Generate content
+    const model = genAI.getGenerativeModel({
+      model: modelToUse,
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+    });
+    
+    const result = await model.generateContent(buildDocumentParts(pages));
+    const responseText = result.response.text();
+    
+    if (!responseText) {
+      throw new Error('No response received from the AI. Please try again.');
+    }
+    
+    return [parseDocumentResponse(responseText)];
   } catch (error) {
-    console.error('Gemini document extraction error:', error);
-    if (error.message?.includes('document') || error.message?.includes('JSON') || error.message?.includes('fields')) throw error;
+    // Don't log errors that might contain sensitive information
+    if (error.message?.includes('document') || error.message?.includes('JSON') || error.message?.includes('fields')) {
+      throw error;
+    }
     throw new Error(error.message || 'Could not read this document. Please check your connection and try again.');
   }
 };

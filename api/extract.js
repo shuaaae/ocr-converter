@@ -16,12 +16,18 @@ export default async function handler(request, response) {
   }
 
   try {
-    const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 8192 },
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: { 
+        temperature: 0.1, 
+        maxOutputTokens: 8192 
+      }
     });
+    
     const result = await model.generateContent(buildDocumentParts(pages));
-    return response.status(200).json({ text: result.response.text() });
+    const responseText = result.response.text();
+    return response.status(200).json({ text: responseText });
   } catch (error) {
     console.error('Document extraction provider error:', error);
     const blocked = error?.message?.includes('API_KEY_HTTP_REFERRER_BLOCKED');

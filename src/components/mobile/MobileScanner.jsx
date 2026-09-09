@@ -156,7 +156,7 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
         <div className="mobile-stats">
           <section className="mobile-card mobile-week"><h2 className="mobile-eyebrow">Last 7 days</h2>
             <div className="mobile-chart" aria-label={`Scans in the last 7 days: ${week.map(day => day.count).join(', ')}`}>
-              {week.map((day, index) => <div className={index === 6 ? 'is-today' : ''} key={index}><span className="mobile-bar-track"><span style={{ height: `${day.count ? Math.max(12, day.count / maxCount * 100) : 7}%` }} /></span><span>{day.label}</span></div>)}
+              {week.map((day, index) => <div className={index === 6 ? 'is-today' : ''} key={index}><span className="mobile-bar-track"><span style={{ height: `${day.count ? Math.max(12, day.count / maxCount * 100) : 7}%` }}></span></span><span>{day.label}</span></div>)}
             </div>
           </section>
           <section className="mobile-card mobile-total"><h2>Today</h2><strong>{todayCount}<span>documents scanned</span></strong><span className="mobile-total-footer"><CheckCheck size={16} /> {scans.length} saved in total</span></section>
