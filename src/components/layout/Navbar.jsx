@@ -63,8 +63,8 @@ const Navbar = () => {
     <nav className="navbar-glass fixed top-0 left-0 w-full z-50 h-20 border-b border-[var(--outline-variant)] shadow-[0_8px_32px_rgba(0,0,0,0.06)]">
       <div className="max-w-7xl mx-auto px-8 h-full flex items-center justify-between">
         <div className="flex items-center gap-2 text-lg font-black tracking-tight text-[var(--text-primary)]">
-          <img className="shrink-0" src="/qr-logo.svg" alt="QR" width="28" height="28" />
-          IDScan AI
+          <img className="shrink-0" src="/owlens-logo.png" alt="Owlens" width="28" height="28" />
+          Owlens
         </div>
 
         <div className="hidden md:flex items-center gap-2 text-xs font-semibold tracking-[0.05em] text-[var(--text-muted)]">
@@ -75,7 +75,7 @@ const Navbar = () => {
           {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </div>
 
-        <button ref={toggleRef} className="bg-transparent border-none p-0 cursor-pointer" onClick={handleToggle} aria-label="Toggle theme">
+        <button ref={toggleRef} className="hidden md:block bg-transparent border-none p-0 cursor-pointer" onClick={handleToggle} aria-label="Toggle theme">
           <span className="toggle-track flex items-center w-14 h-[30px] rounded-full bg-[var(--outline-variant)] p-[3px] transition-colors duration-300">
             <span className="toggle-thumb flex items-center justify-center w-6 h-6 rounded-full bg-[var(--bg-card)] shadow-sm transition-transform duration-300">
               <span className="material-symbols-outlined !text-base text-[var(--accent-primary)]">

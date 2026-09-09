@@ -9,48 +9,45 @@
   .mobile-owl-message strong { display: block; color: var(--accent-secondary); font-size: 13px; font-weight: 700; margin-bottom: 5px; }
   .mobile-owl-message > span { display: block; font-size: 12px; line-height: 1.6; color: var(--text-secondary); }
   .mobile-owl-message small { display: flex; align-items: center; gap: 5px; color: var(--accent-secondary); font-size: 11px; font-weight: 600; margin-top: 8px; }
-  .mobile-chat:not([hidden]) { display: flex; flex-direction: column; height: calc(100dvh - 230px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); min-height: 300px; }
-  .mobile-chat-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .mobile-chat:not([hidden]) { display: flex; flex-direction: column; height: 100dvh; min-height: 300px; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--bg-surface); padding: calc(env(safe-area-inset-top, 0px) + 12px) 22px calc(env(safe-area-inset-bottom, 0px) + 12px); }
+  .mobile-chat-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-shrink: 0; }
   .mobile-chat-heading > div { flex: 1; }
   .mobile-chat-heading h1 { font-size: 26px; font-weight: 650; }
   .mobile-chat-heading p { font-size: 12px; color: var(--text-muted); }
   .mobile-chat-conversation { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 3px 16px; }
-  .mobile-chat-message { width: fit-content; max-width: 92%; border-radius: 20px 20px 20px 5px; padding: 14px 16px; background: var(--bg-card); margin-bottom: 12px; }
-  .mobile-chat-message.user { margin-left: auto; background: var(--surface-container); border-radius: 20px 20px 5px 20px; }
-  .mobile-chat-message > span { color: var(--accent-secondary); font-size: 10px; font-weight: 600; }
-  .mobile-chat-message p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; margin-top: 5px; }
-  .mobile-chat-thinking { font-size: 12px; color: var(--text-muted); padding: 10px; }
-  .mobile-chat-composer { display: flex; align-items: center; gap: 10px; padding: 8px 9px 8px 18px; background: var(--bg-card); border-radius: 30px; }
+  .mobile-chat-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 0 20px; }
+  .mobile-chat-empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; margin-top: 0; }
+  .mobile-chat-empty p { max-width: 285px; margin: 0 auto; font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+  .mobile-chat-message { display: flex; gap: 10px; align-items: flex-start; width: fit-content; max-width: 85%; margin-bottom: 16px; }
+  .mobile-chat-message.user { margin-left: auto; flex-direction: row-reverse; }
+  .mobile-chat-message.user > div { background: var(--surface-container); border-radius: 20px 20px 5px 20px; }
+  .mobile-chat-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .mobile-chat-message > div { border-radius: 20px 20px 20px 5px; padding: 12px 16px; background: var(--bg-card); }
+  .mobile-chat-message > div > span { color: var(--accent-secondary); font-size: 10px; font-weight: 600; display: block; margin-bottom: 4px; }
+  .mobile-chat-message p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; margin: 0; }
+  .mobile-chat-thinking { font-size: 12px; color: var(--text-muted); padding: 10px; text-align: center; }
+  .mobile-chat-composer { display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 20px; background: var(--bg-card); border-radius: 30px; flex-shrink: 0; margin-top: 12px; }
   .mobile-chat-composer input { flex: 1; min-width: 0; font-size: 16px; background: transparent; color: var(--text-primary); }
-  .mobile-chat-composer button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent-primary); color: white; }
-  .mobile-source-card { position: absolute; right: 0; bottom: calc(100% + 18px); width: min(280px, 100%); padding: 12px 20px; border-radius: 27px; background: var(--bg-card); border: 1px solid color-mix(in srgb, var(--outline-variant) 24%, transparent); box-shadow: 0 14px 45px #102e4318; transform-origin: bottom right; animation: mobile-options-open .18s ease-out; max-height: calc(100dvh - 135px - env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
-  .mobile-source-card > button { display: flex; align-items: center; gap: 17px; width: 100%; text-align: left; padding: 23px 3px; color: var(--text-primary); }
+  .mobile-chat-composer button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent-primary); color: white; flex-shrink: 0; }
+  .mobile-source-card { position: absolute; right: 0; bottom: calc(100% + 18px); width: min(240px, 85%); padding: 10px 16px; border-radius: 22px; background: var(--bg-card); border: 1px solid color-mix(in srgb, var(--outline-variant) 24%, transparent); box-shadow: 0 14px 45px #102e4318; transform-origin: bottom right; animation: mobile-options-open .18s ease-out; max-height: calc(100dvh - 135px - env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
+  .mobile-source-card > button { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 18px 3px; color: var(--text-primary); }
   .mobile-source-card > button + button { border-top: 1px solid color-mix(in srgb, var(--outline-variant) 28%, transparent); }
-  .mobile-source-card > button > svg { flex-shrink: 0; color: var(--accent-primary); }
-  .mobile-source-card strong { display: block; font-size: 16px; font-weight: 600; }
-  .mobile-source-card small { display: block; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+  .mobile-source-card > button > svg { flex-shrink: 0; color: var(--accent-primary); width: 20px; height: 20px; }
+  .mobile-source-card strong { display: block; font-size: 14px; font-weight: 600; }
+  .mobile-source-card small { display: block; color: var(--text-muted); font-size: 10px; margin-top: 3px; }
   .mobile-add-button > svg { transition: transform .18s ease; }
   .mobile-add-button.is-open > svg { transform: rotate(45deg); }
   .mobile-upload-card > .mobile-secondary-button { margin-bottom: 16px; }
   .desktop-scanner { display: none; }
   .mobile-scanner { display: block; min-height: 100dvh; }
-  .navbar-glass {
-    position: absolute;
-    height: 88px;
-    padding-top: env(safe-area-inset-top, 0px);
-    border: 0;
-    box-shadow: none;
-    background: transparent;
-    backdrop-filter: none;
-  }
-  .navbar-glass > div { padding: 0 22px; }
-  .navbar-glass > div > div:first-child { font-size: 16px; gap: 10px; }
-  .navbar-glass img { box-sizing: content-box; padding: 12px; width: 24px; height: 24px; background: var(--bg-card); border-radius: 50%; box-shadow: 0 8px 25px #102e4305; }
-  .navbar-glass button[aria-label="Toggle theme"] { padding: 12px 14px; background: var(--bg-card); border-radius: 32px; box-shadow: 0 8px 25px #102e4305; }
-  .mobile-content { max-width: 600px; margin: auto; padding: calc(108px + env(safe-area-inset-top, 0px)) 22px calc(120px + env(safe-area-inset-bottom, 0px)); }
+  .navbar-glass { display: none; } /* Hide navbar on mobile */
+  .mobile-content { max-width: 600px; margin: auto; padding: calc(28px + env(safe-area-inset-top, 0px)) 22px calc(120px + env(safe-area-inset-bottom, 0px)); }
   .mobile-scanner button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .mobile-scanner button:disabled { opacity: .45; cursor: wait; }
-  .mobile-scanner button:focus-visible, .mobile-scanner input:focus-visible, .mobile-scanner summary:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 4px; }
+  .mobile-scanner button:focus-visible, .mobile-scanner summary:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 4px; }
+  .mobile-scanner input:focus-visible { outline: none; }
+  .mobile-search input:focus-visible { outline: none; }
+  .mobile-chat-composer input:focus-visible { outline: none; }
   .mobile-heading { margin-bottom: 26px; }
   .mobile-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 1.65px; font-weight: 500; color: var(--text-muted); }
   .mobile-heading h1 { font-size: clamp(27px, 7.3vw, 34px); letter-spacing: -1.1px; line-height: 1.2; font-weight: 700; margin: 7px 0 9px; }
@@ -100,9 +97,10 @@
   .mobile-icon-button { display: grid; place-items: center; flex-shrink: 0; min-height: 44px; min-width: 44px; border-radius: 50%; color: var(--accent-secondary); }
   .mobile-empty { padding: 28px 20px; text-align: center; }
   .mobile-empty-icon { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-card); color: var(--accent-primary); margin: 0 auto 18px; }
-  .mobile-empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .mobile-empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 12px; }
   .mobile-empty p { max-width: 285px; margin: auto; font-size: 13px; color: var(--text-muted); line-height: 1.65; }
   .mobile-bottom-dock { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: calc(100% - 36px); max-width: 556px; z-index: 60; display: flex; align-items: center; gap: 10px; }
+  .mobile-chat:not([hidden]) ~ .mobile-bottom-dock { display: none; } /* Hide bottom nav when chat is open */
   .mobile-bottom-nav, .mobile-add-button { background: color-mix(in srgb, var(--bg-card) 92%, transparent); border: 1.5px solid color-mix(in srgb, var(--bg-card) 85%, transparent); box-shadow: 0 12px 35px #102e4312; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
   .mobile-bottom-nav { flex: 1; min-width: 0; display: flex; border-radius: 48px; padding: 5px; height: 74px; }
   .mobile-bottom-nav button { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; border-radius: 40px; color: var(--text-primary); transition: background .18s, color .18s; }
@@ -182,4 +180,96 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mobile-scanner *, .mobile-scanner *::before, .mobile-scanner *::after { animation: none !important; transition: none !important; }
+}
+
+/* Settings Page Styles */
+.mobile-setting-card { padding: 20px; margin-bottom: 16px; }
+.mobile-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.mobile-setting-info { display: flex; align-items: center; gap: 14px; flex: 1; }
+.mobile-setting-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+.mobile-setting-info p { font-size: 12px; color: var(--text-muted); }
+.mobile-setting-value { font-size: 13px; color: var(--accent-secondary); font-weight: 600; margin-top: 12px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--outline-variant) 28%, transparent); }
+
+/* Setting Header with Icon */
+.mobile-setting-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+.mobile-setting-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-container-low); color: var(--accent-primary); display: grid; place-items: center; flex-shrink: 0; }
+.mobile-setting-header h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.mobile-setting-header p { font-size: 13px; color: var(--text-muted); }
+
+/* Toggle Switch */
+.mobile-toggle-button { padding: 4px; }
+.mobile-toggle-track { display: block; width: 50px; height: 28px; background: var(--surface-container); border-radius: 14px; position: relative; transition: background .2s; }
+.mobile-toggle-track.is-active { background: var(--accent-primary); }
+.mobile-toggle-thumb { display: block; width: 20px; height: 20px; background: white; border-radius: 50%; position: absolute; top: 4px; left: 4px; transition: transform .2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.mobile-toggle-track.is-active .mobile-toggle-thumb { transform: translateX(22px); }
+
+/* Language Options - Toggle Style */
+.mobile-language-selector { display: flex; gap: 0; background: var(--surface-container-low); padding: 4px; border-radius: 16px; }
+.mobile-language-btn { flex: 1; padding: 12px 20px; background: transparent; border-radius: 12px; font-size: 14px; font-weight: 600; color: var(--text-muted); transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); border: none; position: relative; z-index: 1; }
+.mobile-language-btn.is-active { background: var(--bg-card); color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.12); transform: scale(1.02); }
+
+/* Danger Zone */
+.mobile-danger-card { border: 1px solid color-mix(in srgb, #dc2626 15%, transparent); }
+.mobile-icon-danger { background: color-mix(in srgb, #dc2626 10%, transparent); color: #dc2626; }
+.mobile-danger-confirm { margin-top: 16px; padding-top: 16px; border-top: 1px solid color-mix(in srgb, var(--outline-variant) 28%, transparent); }
+.mobile-danger-confirm p { font-size: 13px; line-height: 1.6; margin-bottom: 14px; }
+.mobile-danger-confirm strong { color: #dc2626; }
+.mobile-danger-actions { display: flex; flex-direction: column; gap: 10px; }
+.mobile-danger-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px 24px; background: #dc2626; color: white; border-radius: 12px; font-weight: 600; font-size: 14px; }
+
+/* App Info */
+.mobile-about-info { padding: 20px; margin-top: 16px; }
+.mobile-app-info { display: flex; align-items: center; gap: 14px; }
+.mobile-app-info img { border-radius: 12px; }
+.mobile-app-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+.mobile-app-info p { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.mobile-app-info small { font-size: 11px; color: var(--text-muted); }
+
+/* Mascot Images */
+.mobile-mascot-scan { width: 180px; height: auto; margin-bottom: 20px; }
+.mobile-mascot-chat { width: 140px; height: auto; margin-bottom: 8px; }
+
+/* Scan Detail View */
+.mobile-back-button { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--accent-primary); margin-bottom: 16px; padding: 8px 0; }
+
+/* Clickable Document in History */
+@media (max-width: 767px) {
+  .mobile-document { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border-radius: 18px; padding: 16px; position: relative; }
+  .mobile-document-content { display: flex; align-items: center; gap: 14px; flex: 1; text-align: left; background: none; border: none; padding: 0; }
+  .mobile-document-content .mobile-tag { background: color-mix(in srgb, var(--accent-primary) 10%, transparent); color: var(--accent-primary); }
+}
+
+/* Help Modal Styles - Bottom Sheet with Padding */
+@media (max-width: 767px) {
+  .mobile-help-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; padding: 0 16px 16px; animation: mobile-overlay-fade .25s ease-out; }
+  .mobile-help-sheet { background: #ffffff; border-radius: 24px; width: 100%; max-width: 420px; max-height: 85vh; margin: 0 auto; overflow: hidden; display: flex; flex-direction: column; animation: mobile-sheet-slide-up .3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.1), 0 -4px 10px -5px rgba(0, 0, 0, 0.04); }
+  .mobile-help-handle-area { padding: 12px 16px 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .mobile-help-handle-area:active { cursor: grabbing; }
+  .mobile-help-handle { width: 36px; height: 4px; background: #d1d5db; border-radius: 2px; margin: 0 auto; pointer-events: none; }
+  .mobile-help-sheet-header { display: flex; align-items: flex-start; gap: 12px; padding: 12px 22px 16px; border-bottom: 1px solid #e5e7eb; flex-shrink: 0; background: #ffffff; }
+  .mobile-help-sheet-header > div { flex: 1; }
+  .mobile-help-sheet-header h2 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #1f2937; }
+  .mobile-help-beta { font-size: 10px; font-weight: 700; color: #059669; background: #d1fae5; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px; }
+  .mobile-help-sheet-header p { font-size: 12px; color: #6b7280; line-height: 1.6; }
+  .mobile-help-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #9ca3af; flex-shrink: 0; background: transparent; }
+  .mobile-help-sheet-content { flex: 1; overflow-y: auto; padding: 20px 22px 24px; background: #ffffff; }
+  
+  .mobile-help-section { margin-bottom: 16px; }
+  .mobile-help-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1f2937; }
+  .mobile-help-item { margin-bottom: 18px; }
+  .mobile-help-item:last-child { margin-bottom: 0; }
+  .mobile-help-item strong { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #1f2937; }
+  .mobile-help-item p { font-size: 13px; color: #6b7280; line-height: 1.65; margin: 0; }
+  
+  .mobile-help-cancel { width: 100%; padding: 14px; background: transparent; color: #0891b2; font-size: 15px; font-weight: 600; border-radius: 12px; margin-top: 8px; border: 1px solid #e5e7eb; }
+}
+
+@keyframes mobile-overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mobile-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }

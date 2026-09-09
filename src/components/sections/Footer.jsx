@@ -11,8 +11,8 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-12 max-xl:flex-col max-xl:text-center">
         <div className="flex flex-col gap-3 max-xl:items-center">
           <div className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
-            <img className="shrink-0" src="/qr-logo.svg" alt="QR" width="24" height="24" />
-            IDScan AI
+            <img className="shrink-0" src="/owlens-logo.png" alt="Owlens" width="24" height="24" />
+            Owlens
           </div>
           <p className="text-sm text-[var(--text-muted)] max-w-[280px] leading-relaxed max-xl:text-center">
             The clinical standard for document extraction and identity verification.

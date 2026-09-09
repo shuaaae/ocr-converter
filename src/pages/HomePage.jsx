@@ -59,7 +59,7 @@ const HomePage = () => {
     try {
       ocrText = await extractTextFromImage(file);
     } catch {
-      console.warn(`Tesseract OCR failed for ${label}, falling back to Gemini-only.`);
+      // Silently fall back to Gemini vision processing
     }
 
     // Step 2: Gemini AI — returns array of IDs found
@@ -76,7 +76,7 @@ const HomePage = () => {
       const blobFile = new File([blob], `${label}.png`, { type: 'image/png' });
       ocrText = await extractTextFromImage(blobFile);
     } catch {
-      console.warn(`Tesseract OCR failed for ${label}, falling back to Gemini-only.`);
+      // Silently fall back to Gemini vision processing
     }
 
     const image = await imageToAIData(blob);
@@ -174,7 +174,9 @@ const HomePage = () => {
       const savedScans = JSON.parse(localStorage.getItem('ocrScans') || '[]');
       localStorage.setItem('ocrScans', JSON.stringify([...newScans, ...savedScans]));
     } catch (err) {
-      setError(err.message || 'Failed to extract data from image');
+      // Show user-friendly error message
+      const userMessage = err.message || 'Could not scan this document. Please try again with a clearer image.';
+      setError(userMessage);
       setProcessingStatus('');
     } finally {
       setIsProcessing(false);

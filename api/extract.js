@@ -29,7 +29,7 @@ export default async function handler(request, response) {
     const responseText = result.response.text();
     return response.status(200).json({ text: responseText });
   } catch (error) {
-    console.error('Document extraction provider error:', error);
+    // Silently handle errors - no console logging
     const blocked = error?.message?.includes('API_KEY_HTTP_REFERRER_BLOCKED');
     return response.status(blocked ? 503 : 502).json({
       error: blocked

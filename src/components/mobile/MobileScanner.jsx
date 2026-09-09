@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, MessageCircle } from 'lucide-react';
 import MobileChat from './MobileChat';
-import { House, ScanLine, History, Info, Plus, ArrowUpRight, ChevronRight, FileText, FileSpreadsheet, Download, Search, X, CheckCheck, Upload, FolderOpen, Sparkles } from 'lucide-react';
+import { House, ScanLine, History, Info, Plus, ArrowUpRight, ChevronRight, FileText, FileSpreadsheet, Download, Search, X, CheckCheck, Upload, FolderOpen, Sparkles, Settings, Moon, Sun, Globe, Trash2 } from 'lucide-react';
 import { downloadDocumentExcel } from '../../utils/excelExport';
 import { getCleanDocumentData, humanizeFieldName } from '../../utils/documentData';
 import './mobile-scanner.css';
@@ -10,7 +10,7 @@ const tabs = [
   { id: 'home', label: 'Home', Icon: House },
   { id: 'scan', label: 'Scan', Icon: ScanLine },
   { id: 'history', label: 'History', Icon: History },
-  { id: 'about', label: 'About', Icon: Info },
+  { id: 'settings', label: 'Settings', Icon: Settings },
 ];
 
 function readScans() {
@@ -20,15 +20,17 @@ function readScans() {
   } catch { return []; }
 }
 
-function ScanList({ scans, onDownload }) {
+function ScanList({ scans, onDownload, onViewScan }) {
   return <div className="mobile-scan-list">{scans.map(scan => (
     <article className="mobile-document" key={scan.id}>
-      <span className="mobile-icon-tile"><FileText size={24} /></span>
-      <div className="mobile-document-copy">
-        <h3>{scan.documentType || 'Document'}</h3>
-        <p>{new Date(scan.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(scan.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-        <span className="mobile-tag">Ready to export</span>
-      </div>
+      <button className="mobile-document-content" onClick={() => onViewScan(scan)}>
+        <span className="mobile-icon-tile"><FileText size={24} /></span>
+        <div className="mobile-document-copy">
+          <h3>{scan.documentType || 'Document'}</h3>
+          <p>{new Date(scan.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(scan.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+          <span className="mobile-tag">Tap to view</span>
+        </div>
+      </button>
       <button className="mobile-icon-button" aria-label={`Download ${scan.documentType || 'document'} as Excel`} onClick={() => onDownload(scan)}><Download size={21} /></button>
     </article>
   ))}</div>;
@@ -70,6 +72,35 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
   const [sourceOpen, setSourceOpen] = useState(false);
   const sourceCard = useRef(null);
   const addButton = useRef(null);
+  
+  // Settings state
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const [owlLanguage, setOwlLanguage] = useState(() => localStorage.getItem('owlLanguage') || 'english');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  
+  // Apply theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+  
+  // Save language preference
+  useEffect(() => {
+    localStorage.setItem('owlLanguage', owlLanguage);
+  }, [owlLanguage]);
+  
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+  
+  const handleResetData = () => {
+    localStorage.removeItem('ocrScans');
+    localStorage.removeItem('owlLanguage');
+    setOwlLanguage('english');
+    onHistoryChange();
+    setShowResetConfirm(false);
+    alert('All data has been reset!');
+  };
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 768px)');
     const closeOnDesktop = () => { if (desktop.matches) setSourceOpen(false); };
@@ -105,6 +136,7 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
   const [query, setQuery] = useState('');
   const [exportError, setExportError] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [viewingScan, setViewingScan] = useState(null);
   const scans = readScans();
   const now = new Date();
   const todayCount = scans.filter(scan => new Date(scan.timestamp).toDateString() === now.toDateString()).length;
@@ -133,9 +165,24 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
     catch { setExportError('Could not download your results. Please try again.'); }
   };
 
+  const handleViewScan = (scan) => {
+    setViewingScan(scan);
+  };
+
+  const handleBackFromScan = () => {
+    setViewingScan(null);
+  };
+
+  const downloadScanExcel = async (scan) => {
+    setExportError('');
+    try {
+      await downloadDocumentExcel([scan.data]);
+    } catch { setExportError('Could not download this document. Please try again.'); }
+  };
+
   return <div className="mobile-scanner">
     <main id="mobile-content" className="mobile-content">
-      <MobileChat active={tab === 'chat'} onClose={() => navigate('home')} />
+      <MobileChat active={tab === 'chat'} onClose={() => navigate('home')} language={owlLanguage} />
       {exportError && <p className="mobile-error" role="alert">{exportError}</p>}
       {error && tab !== 'scan' && <p className="mobile-error" role="alert">{error}</p>}
       {tab === 'home' && <>
@@ -177,7 +224,9 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
             {extractedData.map((data, index) => <details key={index} open={extractedData.length === 1}><summary>{data._documentType || data.fullName || data.firstName || `Document ${index + 1}`}</summary><DocumentFields data={getCleanDocumentData(data)} /></details>)}
             {extractedData.length > 0 && <div className="mobile-export-actions"><button className="mobile-primary-button" onClick={onDownloadJson}><Download size={19} /> Download JSON</button><button className="mobile-secondary-button" onClick={downloadResults}><FileSpreadsheet size={19} /> Download Excel</button></div>}<button className="mobile-secondary-button" onClick={onClear}>Scan another document</button>
           </section> : files?.length ? <section className="mobile-card mobile-files"><div className="mobile-section-heading"><h2>Ready to scan</h2><button onClick={onClear}>Clear</button></div><p>{files.length} of 10 files selected</p>{files.map((file, index) => <div className="mobile-file" key={index}><FileText size={22} /><span>{file.name}<small>{(file.size / 1024).toFixed(0)} KB</small></span></div>)}<button className="mobile-primary-button" onClick={onProcess}><ScanLine size={20} /> Extract document data</button><button className="mobile-secondary-button" onClick={openSourceOptions}>Choose different files</button></section>
-            : <section className="mobile-upload-card"><span className="mobile-empty-icon"><Upload size={32} /></span><strong>Add your documents</strong><span>Choose photos, PDFs, or Word files</span><button className="mobile-primary-button" onClick={onCameraClick}><Camera size={20} /> Take a photo</button><button className="mobile-secondary-button" onClick={onUploadClick}><Upload size={19} /> Upload files</button><small>Up to 10 files at a time</small></section>}
+            : <section className="mobile-upload-card">
+                <img src="/owlscan.png" alt="Owl ready to scan" className="mobile-mascot-scan" />
+                <strong>Add your documents</strong><span>Choose photos, PDFs, or Word files</span><button className="mobile-primary-button" onClick={onCameraClick}><Camera size={20} /> Take a photo</button><button className="mobile-secondary-button" onClick={onUploadClick}><Upload size={19} /> Upload files</button><small>Up to 10 files at a time</small></section>}
         <h2 className="mobile-subheading">Made for your paperwork</h2>
         <div className="mobile-feature-row"><span className="mobile-icon-tile"><FileText size={26} /></span><span><strong>Any readable document</strong><small>Extract labeled fields, sections, and table rows.</small></span></div>
         <div className="mobile-feature-row"><span className="mobile-icon-tile"><FileSpreadsheet size={26} /></span><span><strong>Choose your format</strong><small>Download structured results as JSON or Excel.</small></span></div>
@@ -185,29 +234,136 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
       </>}
 
       {tab === 'history' && <>
-        <header className="mobile-heading"><p className="mobile-eyebrow">Everything in one place</p><h1>Scan history</h1><p>Your documents, ready when you need them.</p></header>
-        <div className="mobile-search"><Search size={21} /><input aria-label="Search scan history" placeholder="Search name, ID, or document…" value={query} onChange={event => setQuery(event.target.value)} />{query && <button className="mobile-icon-button" aria-label="Clear search" onClick={() => setQuery('')}><X size={18} /></button>}</div>
-        <div className="mobile-section-heading"><h2>{query ? 'Search results' : 'All documents'} <span className="mobile-count">{filtered.length}</span></h2>{scans.length > 0 && <button onClick={() => setConfirmClear(true)}>Clear history</button>}</div>
-        {confirmClear && <section className="mobile-card mobile-clear-confirm" aria-label="Confirm clearing scan history"><h2>Clear saved history?</h2><p>This removes all saved scans from this browser. Download any documents you want to keep first.</p><button className="mobile-primary-button" onClick={() => {
-          try {
-            localStorage.removeItem('ocrScans');
-            onHistoryChange();
-            setConfirmClear(false);
-            setQuery('');
-          } catch { setExportError('Could not clear history. Please try again.'); }
-        }}>Clear all saved scans</button><button className="mobile-secondary-button" onClick={() => setConfirmClear(false)}>Keep history</button></section>}
-        {filtered.length ? <ScanList scans={filtered} onDownload={download} /> : <EmptyState searching={Boolean(query)} />}
-        <p className="mobile-footnote">History is saved in this browser on this device.</p>
+        {viewingScan ? (
+          // Viewing a single scan
+          <div className="mobile-scan-detail">
+            <button className="mobile-back-button" onClick={handleBackFromScan}>
+              <ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} /> Back to history
+            </button>
+            <header className="mobile-heading">
+              <h1>{viewingScan.documentType || 'Document'}</h1>
+              <p>{new Date(viewingScan.timestamp).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(viewingScan.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+            </header>
+            <section className="mobile-card mobile-results">
+              <DocumentFields data={getCleanDocumentData(viewingScan.data)} />
+              <div className="mobile-export-actions" style={{ marginTop: '20px' }}>
+                <button className="mobile-primary-button" onClick={() => downloadScanExcel(viewingScan)}>
+                  <FileSpreadsheet size={19} /> Download Excel
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : (
+          // History list view
+          <>
+            <header className="mobile-heading"><p className="mobile-eyebrow">Everything in one place</p><h1>Scan history</h1><p>Your documents, ready when you need them.</p></header>
+            <div className="mobile-search"><Search size={21} /><input aria-label="Search scan history" placeholder="Search name, ID, or document…" value={query} onChange={event => setQuery(event.target.value)} />{query && <button className="mobile-icon-button" aria-label="Clear search" onClick={() => setQuery('')}><X size={18} /></button>}</div>
+            <div className="mobile-section-heading"><h2>{query ? 'Search results' : 'All documents'} <span className="mobile-count">{filtered.length}</span></h2>{scans.length > 0 && <button onClick={() => setConfirmClear(true)}>Clear history</button>}</div>
+            {confirmClear && <section className="mobile-card mobile-clear-confirm" aria-label="Confirm clearing scan history"><h2>Clear saved history?</h2><p>This removes all saved scans from this browser. Download any documents you want to keep first.</p><button className="mobile-primary-button" onClick={() => {
+              try {
+                localStorage.removeItem('ocrScans');
+                onHistoryChange();
+                setConfirmClear(false);
+                setQuery('');
+              } catch { setExportError('Could not clear history. Please try again.'); }
+            }}>Clear all saved scans</button><button className="mobile-secondary-button" onClick={() => setConfirmClear(false)}>Keep history</button></section>}
+            {filtered.length ? <ScanList scans={filtered} onDownload={download} onViewScan={handleViewScan} /> : <EmptyState searching={Boolean(query)} />}
+            <p className="mobile-footnote">History is saved in this browser on this device.</p>
+          </>
+        )}
       </>}
 
-      {tab === 'about' && <>
-        <header className="mobile-heading"><p className="mobile-eyebrow">A simpler way to work</p><h1>About IDScan AI</h1><p>Less paperwork. More possibilities.</p></header>
-        <section className="mobile-card mobile-about-intro"><span className="mobile-icon-tile"><ScanLine size={30} /></span><h2>Your paperwork,<br />a little lighter.</h2><p>Turn document photos into structured information, then take it straight to your spreadsheet.</p></section>
-        {[['01', 'Add a document', 'Choose a photo, PDF, or Word file. You can upload up to 10 files together.'], ['02', 'Let AI do the reading', 'Extract information from IDs and COR documents. Review the results for accuracy.'], ['03', 'Make it yours', 'Download an Excel file, or find completed scans in your history.']].map(([number, title, copy]) => <div className="mobile-feature-row" key={number}><span className="mobile-step">{number}</span><span><strong>{title}</strong><small>{copy}</small></span></div>)}
-        <button className="mobile-primary-button" onClick={() => navigate('scan')}><Sparkles size={19} /> Start scanning</button>
+      {tab === 'settings' && <>
+        <header className="mobile-heading"><p className="mobile-eyebrow">Customize your experience</p><h1>Settings</h1><p>Personalize Owlens to work your way.</p></header>
+        
+        {/* Theme Setting */}
+        <section className="mobile-card mobile-setting-card">
+          <div className="mobile-setting-row">
+            <div className="mobile-setting-info">
+              <span className="mobile-icon-tile">{theme === 'light' ? <Sun size={24} /> : <Moon size={24} />}</span>
+              <div>
+                <h3>Theme</h3>
+                <p>Choose your preferred color scheme</p>
+              </div>
+            </div>
+            <button className="mobile-toggle-button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+              <span className={`mobile-toggle-track ${theme === 'dark' ? 'is-active' : ''}`}>
+                <span className="mobile-toggle-thumb" />
+              </span>
+            </button>
+          </div>
+          <div className="mobile-setting-value">{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</div>
+        </section>
+
+        {/* Language Setting */}
+        <section className="mobile-card mobile-setting-card">
+          <div className="mobile-setting-header">
+            <span className="mobile-setting-icon"><Globe size={20} /></span>
+            <div>
+              <h3>Language</h3>
+              <p>Choose how Owl talks in the app.</p>
+            </div>
+          </div>
+          <div className="mobile-language-selector">
+            <button 
+              className={`mobile-language-btn ${owlLanguage === 'english' ? 'is-active' : ''}`}
+              onClick={() => setOwlLanguage('english')}
+            >
+              English
+            </button>
+            <button 
+              className={`mobile-language-btn ${owlLanguage === 'filipino' ? 'is-active' : ''}`}
+              onClick={() => setOwlLanguage('filipino')}
+            >
+              Filipino
+            </button>
+          </div>
+        </section>
+
+        {/* Reset Data */}
+        <section className="mobile-card mobile-setting-card mobile-danger-card">
+          <div className="mobile-setting-row">
+            <div className="mobile-setting-info">
+              <span className="mobile-icon-tile mobile-icon-danger"><Trash2 size={24} /></span>
+              <div>
+                <h3>Reset Data</h3>
+                <p>Clear all saved scans and settings</p>
+              </div>
+            </div>
+          </div>
+          {showResetConfirm ? (
+            <div className="mobile-danger-confirm">
+              <p><strong>Are you sure?</strong> This will permanently delete all your saved scans and reset settings. This action cannot be undone.</p>
+              <div className="mobile-danger-actions">
+                <button className="mobile-danger-button" onClick={handleResetData}>
+                  <Trash2 size={18} /> Yes, reset everything
+                </button>
+                <button className="mobile-secondary-button" onClick={() => setShowResetConfirm(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="mobile-secondary-button" onClick={() => setShowResetConfirm(true)}>
+              Reset all data
+            </button>
+          )}
+        </section>
+
+        {/* App Info */}
+        <section className="mobile-card mobile-about-info">
+          <div className="mobile-app-info">
+            <img src="/owlens-logo.png" alt="Owlens" width="48" height="48" />
+            <div>
+              <h3>Owlens</h3>
+              <p>Smart Document Scanning</p>
+              <small>Version 1.0.0</small>
+            </div>
+          </div>
+        </section>
       </>}
     </main>
-    <div className="mobile-bottom-dock">
+    <div className="mobile-bottom-dock" style={{ display: tab === 'chat' ? 'none' : 'flex' }}>
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">{tabs.map(item => <button key={item.id} className={tab === item.id ? 'is-active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}><item.Icon size={25} strokeWidth={1.8} /><span>{item.label}</span></button>)}</nav>
       <button ref={addButton} className={`mobile-add-button${sourceOpen ? ' is-open' : ''}`} aria-label={sourceOpen ? 'Close document options' : 'Add documents'} aria-expanded={sourceOpen} aria-controls="mobile-source-options" disabled={isProcessing} onClick={() => setSourceOpen(open => !open)}><Plus size={30} strokeWidth={2.5} /></button>
       <div ref={sourceCard} id="mobile-source-options" className="mobile-source-card" role="region" aria-label="Add a document" hidden={!sourceOpen}>

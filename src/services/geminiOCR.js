@@ -140,7 +140,7 @@ const geminiOCR = async (input = {}) => {
     let modelToUse = 'gemini-1.5-flash'; // Default fallback
     
     try {
-      // Only attempt model discovery in development, and without logging sensitive data
+      // Only attempt model discovery without logging sensitive data
       const listResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
         headers: { 'x-goog-api-key': apiKey }
       });
@@ -170,16 +170,27 @@ const geminiOCR = async (input = {}) => {
     const responseText = result.response.text();
     
     if (!responseText) {
-      throw new Error('No response received from the AI. Please try again.');
+      throw new Error('Could not read this document. Please try again with a clearer image.');
     }
     
     return [parseDocumentResponse(responseText)];
   } catch (error) {
-    // Don't log errors that might contain sensitive information
-    if (error.message?.includes('document') || error.message?.includes('JSON') || error.message?.includes('fields')) {
-      throw error;
+    // Provide user-friendly error messages
+    if (error.message?.includes('document') || error.message?.includes('JSON') || error.message?.includes('fields') || error.message?.includes('image')) {
+      throw error; // These are already user-friendly
     }
-    throw new Error(error.message || 'Could not read this document. Please check your connection and try again.');
+    
+    // Generic network or API errors - make them user-friendly
+    if (error.message?.includes('fetch') || error.message?.includes('network')) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    if (error.message?.includes('API key') || error.message?.includes('401') || error.message?.includes('403')) {
+      throw new Error('Authentication error. Please check your API key configuration.');
+    }
+    
+    // Default friendly message for unknown errors
+    throw new Error('Could not scan this document. Please try again.');
   }
 };
 

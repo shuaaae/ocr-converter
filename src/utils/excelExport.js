@@ -218,7 +218,7 @@ export const downloadExtractedExcel = async (data, filename) => {
   const workbook = await buildWorkbook(data, false);
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const name = filename || `IDScan_AI_Export_${new Date().toISOString().slice(0, 10)}`;
+  const name = filename || `Owlens_Export_${new Date().toISOString().slice(0, 10)}`;
   triggerDownload(blob, `${name}.xlsx`);
 };
 
@@ -248,6 +248,6 @@ export const downloadScanExcel = async (scans, label, isCor = false) => {
   const workbook = await buildWorkbook(rows, isCor);
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const prefix = isCor ? 'COR' : 'IDScan';
+  const prefix = isCor ? 'COR' : 'Owlens';
   triggerDownload(blob, `${prefix}_${label}.xlsx`);
 };
