@@ -2,49 +2,49 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #fff8f6;
-  --color-bg-secondary: #ffe9e2;
+  --color-bg-primary: #f3f8f9;
+  --color-bg-secondary: #e0f1f3;
   --color-bg-card: #ffffff;
-  --color-bg-card-hover: #fff1ec;
-  --color-accent: #FF5C00;
-  --color-accent-dark: #a73a00;
-  --color-text-primary: #271812;
-  --color-text-secondary: #5b4137;
-  --color-text-muted: #8f7065;
-  --color-border: #e4beb1;
-  --color-surface: #ffe9e2;
-  --color-surface-high: #ffe2d8;
-  --color-surface-low: #fff1ec;
-  --color-outline: #e4beb1;
+  --color-bg-card-hover: #edf7f8;
+  --color-accent: #087f91;
+  --color-accent-dark: #075b74;
+  --color-text-primary: #102e43;
+  --color-text-secondary: #496775;
+  --color-text-muted: #708791;
+  --color-border: #c8dde3;
+  --color-surface: #e0f1f3;
+  --color-surface-high: #cce9ee;
+  --color-surface-low: #edf7f8;
+  --color-outline: #c8dde3;
   --color-success: #16a34a;
 }
 
 :root {
-  --bg-primary: #fff8f6;
-  --bg-secondary: #ffe9e2;
+  --bg-primary: #f3f8f9;
+  --bg-secondary: #e0f1f3;
   --bg-card: #ffffff;
-  --accent-primary: #FF5C00;
-  --accent-secondary: #a73a00;
-  --text-primary: #271812;
-  --text-secondary: #5b4137;
-  --text-muted: #8f7065;
-  --surface-container: #ffe9e2;
-  --surface-container-low: #fff1ec;
-  --outline-variant: #e4beb1;
+  --accent-primary: #087f91;
+  --accent-secondary: #075b74;
+  --text-primary: #102e43;
+  --text-secondary: #496775;
+  --text-muted: #708791;
+  --surface-container: #e0f1f3;
+  --surface-container-low: #edf7f8;
+  --outline-variant: #c8dde3;
 }
 
 [data-theme="dark"] {
-  --bg-primary: #121212;
-  --bg-secondary: #1e1e1e;
-  --bg-card: #1a1a1a;
-  --accent-primary: #FF6B1A;
-  --accent-secondary: #ff8c4a;
-  --text-primary: #f0f0f0;
-  --text-secondary: #a0a0a0;
-  --text-muted: #707070;
-  --surface-container: #1a1a1a;
-  --surface-container-low: #161616;
-  --outline-variant: #2a2a2a;
+  --bg-primary: #0c1c29;
+  --bg-secondary: #142c3b;
+  --bg-card: #122735;
+  --accent-primary: #169eaf;
+  --accent-secondary: #6ed7e2;
+  --text-primary: #ecf7fa;
+  --text-secondary: #afc6d0;
+  --text-muted: #8aa7b5;
+  --surface-container: #122735;
+  --surface-container-low: #102330;
+  --outline-variant: #284452;
 }
 
 .material-symbols-outlined {

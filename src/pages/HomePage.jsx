@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import Navbar from '../components/layout/Navbar';
+import MobileScanner from '../components/mobile/MobileScanner';
 import HeroSection from '../components/sections/HeroSection';
 import TrustedBySection from '../components/sections/TrustedBySection';
 import FeaturesSection from '../components/sections/FeaturesSection';
@@ -24,7 +25,11 @@ const HomePage = () => {
   const [error, setError] = useState(null);
   const [processingStatus, setProcessingStatus] = useState('');
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const cacheRef = useRef(new Map());
+  const [mobileTab, setMobileTab] = useState('home');
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const handleHistoryChange = useCallback(() => setHistoryVersion(version => version + 1), []);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -38,6 +43,7 @@ const HomePage = () => {
       return;
     }
     if (selected.length > 0) {
+      setMobileTab('scan');
       setFiles(selected);
       setExtractedData(null);
       setError(null);
@@ -193,8 +199,26 @@ const HomePage = () => {
     <div className="flex flex-col min-h-screen">
       <Navbar />
 
-      <main className="flex-1 pt-20">
+      <MobileScanner
+        onHistoryChange={handleHistoryChange}
+        tab={mobileTab}
+        onTabChange={setMobileTab}
+        onUploadClick={handleUploadClick}
+        onCameraClick={() => cameraInputRef.current?.click()}
+        files={files}
+        extractedData={extractedData}
+        isProcessing={isProcessing}
+        processingStatus={processingStatus}
+        error={error}
+        onProcess={handleProcess}
+        onClear={() => { setFiles(null); setExtractedData(null); setError(null); }}
+        onDownloadExcel={handleDownloadExcel}
+      />
+
+      <main className="desktop-scanner flex-1 pt-20">
         <HeroSection
+          historyVersion={historyVersion}
+          onHistoryChange={handleHistoryChange}
           onUploadClick={handleUploadClick}
           files={files}
           extractedData={extractedData}
@@ -217,6 +241,15 @@ const HomePage = () => {
       </main>
 
       <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={handleFileChange}
+      />
+
+      <input
         ref={fileInputRef}
         type="file"
         accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
@@ -225,7 +258,7 @@ const HomePage = () => {
         onChange={handleFileChange}
       />
 
-      <Footer />
+      <div className="desktop-scanner"><Footer /></div>
     </div>
   );
 };

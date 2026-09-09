@@ -15,7 +15,7 @@ const AboutSection = () => {
               src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80"
               alt="Engineers working in a high-tech lab"
             />
-            <div className="absolute inset-0 bg-[rgba(167,58,0,0.2)] mix-blend-multiply" />
+            <div className="absolute inset-0 bg-[rgba(7,91,116,0.2)] mix-blend-multiply" />
             <div className="glass-card-effect absolute bottom-6 left-6 right-6 border border-[var(--outline-variant)] rounded-2xl p-6">
               <p className="italic font-medium text-sm leading-relaxed text-[var(--text-primary)]">
                 "The most accurate OCR we've tested. It handled tilted mobile photos that other services failed on entirely."
@@ -42,7 +42,7 @@ const AboutSection = () => {
           <div className="flex flex-col gap-4">
             {POINTS.map(([title, desc]) => (
               <div key={title} className="flex items-start gap-4">
-                <div className="w-6 h-6 rounded-full bg-[rgba(255,92,0,0.1)] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-6 h-6 rounded-full bg-[rgba(8,127,145,0.1)] flex items-center justify-center shrink-0 mt-0.5">
                   <span className="material-symbols-outlined !text-sm text-[var(--accent-primary)]">check</span>
                 </div>
                 <div>

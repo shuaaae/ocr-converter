@@ -19,7 +19,7 @@ const FeaturesSection = () => {
 
         <div className="grid grid-cols-3 max-xl:grid-cols-1 max-xl:max-w-[480px] max-xl:mx-auto gap-8">
           {FEATURES.map((f) => (
-            <div key={f.title} className={`glass-card-effect border border-[var(--outline-variant)] rounded-3xl p-8 transition-all duration-300 shadow-[0_10px_40px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)] ${f.highlighted ? 'border-[rgba(255,92,0,0.2)] shadow-[0_10px_40px_rgba(0,0,0,0.04),0_0_0_4px_rgba(255,92,0,0.05)]' : ''}`}>
+            <div key={f.title} className={`glass-card-effect border border-[var(--outline-variant)] rounded-3xl p-8 transition-all duration-300 shadow-[0_10px_40px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(8,127,145,0.08)] ${f.highlighted ? 'border-[rgba(8,127,145,0.2)] shadow-[0_10px_40px_rgba(0,0,0,0.04),0_0_0_4px_rgba(8,127,145,0.05)]' : ''}`}>
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 text-white transition-transform duration-200 group-hover:scale-110 ${f.color}`}>
                 <span className="material-symbols-outlined !text-[28px]">{f.icon}</span>
               </div>

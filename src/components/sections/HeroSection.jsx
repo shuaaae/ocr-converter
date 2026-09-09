@@ -30,6 +30,8 @@ const HeroSection = ({
   onDownloadExcel,
   hasCorDocuments,
   hasIdDocuments,
+  historyVersion,
+  onHistoryChange,
 }) => {
   const hasFiles = files && files.length > 0;
   const hasResults = extractedData && extractedData.length > 0;
@@ -76,25 +78,30 @@ const HeroSection = ({
 
   // Lock body scroll when a fullscreen modal is open
   useEffect(() => {
-    if (panelMode === 'fullscreen' || panelMode === 'historyFullscreen') {
-      document.body.style.overflow = 'hidden';
-    } else {
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const updateScrollLock = () => {
+      document.body.style.overflow = desktop.matches && (panelMode === 'fullscreen' || panelMode === 'historyFullscreen') ? 'hidden' : '';
+    };
+    updateScrollLock();
+    desktop.addEventListener('change', updateScrollLock);
+    return () => {
+      desktop.removeEventListener('change', updateScrollLock);
       document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
+    };
   }, [panelMode]);
 
   // Re-read localStorage when extractedData changes or history is cleared
   const recentScans = useMemo(() =>
     JSON.parse(localStorage.getItem('ocrScans') || '[]'),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [extractedData, scanVersion]
+    [extractedData, scanVersion, historyVersion]
   );
 
   const clearHistory = useCallback(() => {
     localStorage.removeItem('ocrScans');
     setScanVersion((v) => v + 1);
-  }, []);
+    onHistoryChange?.();
+  }, [onHistoryChange]);
 
   // Group scans into batches for the modal
   const allBatches = useMemo(() => {
@@ -243,7 +250,7 @@ const HeroSection = ({
             ))}
           </ul>
           <button
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[var(--accent-primary)] border-none rounded-lg text-white text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 shadow-[0_4px_16px_rgba(255,92,0,0.2)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[var(--accent-primary)] border-none rounded-lg text-white text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 shadow-[0_4px_16px_rgba(8,127,145,0.2)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
             onClick={onProcess}
             disabled={isProcessing}
           >
@@ -260,13 +267,13 @@ const HeroSection = ({
         <div className="flex flex-col gap-3">
           <div className="relative w-full aspect-[3/2] max-md:aspect-[16/9] rounded-xl bg-slate-200 overflow-hidden border border-[var(--outline-variant)]">
             <img className="w-full h-full object-cover object-top" src="/ID.png" alt="Sample ID" />
-            <div className="pulse-border absolute inset-3 border-2 border-[rgba(255,92,0,0.5)] rounded-lg" />
+            <div className="pulse-border absolute inset-3 border-2 border-[rgba(8,127,145,0.5)] rounded-lg" />
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full" />
           <div className="h-1.5 bg-slate-100 rounded-full w-2/3" />
         </div>
         <div className="flex flex-col gap-4">
-          <div className="p-4 rounded-xl bg-[rgba(255,92,0,0.05)] border border-[rgba(255,92,0,0.1)]">
+          <div className="p-4 rounded-xl bg-[rgba(8,127,145,0.05)] border border-[rgba(8,127,145,0.1)]">
             <div className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--accent-secondary)] mb-3">Extracted Data</div>
             <div className="flex flex-col gap-2.5">
               <div className="flex justify-between items-center text-xs">
@@ -301,7 +308,7 @@ const HeroSection = ({
     <section className="py-20 px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div className="flex flex-col gap-8 lg:text-left text-center lg:items-start items-center">
-          <div className="inline-flex items-center gap-2 bg-[rgba(255,92,0,0.1)] text-[var(--accent-primary)] px-4 py-2 rounded-full text-[10px] font-semibold tracking-[0.15em] uppercase w-fit">
+          <div className="inline-flex items-center gap-2 bg-[rgba(8,127,145,0.1)] text-[var(--accent-primary)] px-4 py-2 rounded-full text-[10px] font-semibold tracking-[0.15em] uppercase w-fit">
             <span className="ping-dot relative w-2 h-2" />
             Next-Gen Data Extraction
           </div>
@@ -327,7 +334,7 @@ const HeroSection = ({
 
           <div className="flex flex-col gap-3 pt-2 lg:items-start items-center">
             <button
-              className="inline-flex items-center gap-3 px-8 py-4 bg-[var(--accent-primary)] border-none rounded-xl text-white text-xs font-semibold tracking-[0.1em] uppercase cursor-pointer transition-transform duration-150 shadow-[0_8px_24px_rgba(255,92,0,0.2)] hover:scale-105 active:scale-95"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-[var(--accent-primary)] border-none rounded-xl text-white text-xs font-semibold tracking-[0.1em] uppercase cursor-pointer transition-transform duration-150 shadow-[0_8px_24px_rgba(8,127,145,0.2)] hover:scale-105 active:scale-95"
               onClick={onUploadClick}
             >
               <span className="material-symbols-outlined">upload_file</span>
@@ -344,8 +351,8 @@ const HeroSection = ({
         {/* Glass Dashboard Preview / Live Extraction Panel */}
         {panelMode !== 'closed' && panelMode !== 'fullscreen' && panelMode !== 'history' && panelMode !== 'chat' && (
           <div className="relative">
-            <div className="absolute -inset-4 bg-[rgba(255,92,0,0.1)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
-            <div className={`glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-[0_20px_50px_rgba(255,92,0,0.08)] ${panelMode === 'minimized' ? 'panel-animate-minimize' : 'panel-animate-open'}`}>
+            <div className="absolute -inset-4 bg-[rgba(8,127,145,0.1)] rounded-[2rem] blur-[48px] transition-all duration-300 z-0" />
+            <div className={`glass-card-effect relative z-[1] border border-[var(--outline-variant)] rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-[0_20px_50px_rgba(8,127,145,0.08)] ${panelMode === 'minimized' ? 'panel-animate-minimize' : 'panel-animate-open'}`}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
                 <div className="flex gap-2">
                   <button onClick={() => setPanelMode('closed')} className="w-4 h-4 rounded-full bg-red-400 border-none p-0 cursor-pointer hover:brightness-110 transition-all flex items-center justify-center" title="Close">
@@ -384,7 +391,7 @@ const HeroSection = ({
               <div className="flex flex-col items-center gap-1.5">
                 <button
                   onClick={() => setPanelMode('normal')}
-                  className="dock-icon-bounce w-14 h-14 rounded-[14px] bg-gradient-to-b from-[var(--accent-primary)] to-[#c24500] border-none p-0 cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(255,92,0,0.3)] transition-transform hover:scale-110 active:scale-95"
+                  className="dock-icon-bounce w-14 h-14 rounded-[14px] bg-gradient-to-b from-[var(--accent-primary)] to-[#075b74] border-none p-0 cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(8,127,145,0.3)] transition-transform hover:scale-110 active:scale-95"
                 >
                   <span className="material-symbols-outlined !text-[24px] text-white">scan</span>
                 </button>
@@ -589,7 +596,7 @@ const HeroSection = ({
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                   {names.map((name, i) => (
-                                    <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
+                                    <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(8,127,145,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
                                   ))}
                                 </div>
                               </div>
@@ -762,7 +769,7 @@ const HeroSection = ({
                             </div>
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {names.map((name, i) => (
-                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,92,0,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
+                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(8,127,145,0.08)] text-[var(--accent-secondary)] font-medium">{name}</span>
                               ))}
                             </div>
                           </div>
