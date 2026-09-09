@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Camera, MessageCircle } from 'lucide-react';
 import MobileChat from './MobileChat';
 import { House, ScanLine, History, Info, Plus, ArrowUpRight, ChevronRight, FileText, FileSpreadsheet, Download, Search, X, CheckCheck, Upload, FolderOpen, Sparkles } from 'lucide-react';
-import { downloadExtractedExcel, downloadCorExcel } from '../../utils/excelExport';
+import { downloadDocumentExcel } from '../../utils/excelExport';
+import { getCleanDocumentData, humanizeFieldName } from '../../utils/documentData';
 import './mobile-scanner.css';
 
 const tabs = [
@@ -41,7 +42,31 @@ function EmptyState({ searching = false }) {
   </div>;
 }
 
-export default function MobileScanner({ tab, onTabChange, onUploadClick, onCameraClick, files, extractedData, isProcessing, processingStatus, error, onProcess, onClear, onDownloadExcel, onHistoryChange }) {
+function DocumentFields({ data }) {
+  const renderValue = (value, path) => {
+    if (Array.isArray(value)) {
+      if (value.length === 0) return <span className="mobile-json-empty">No entries</span>;
+      return <div className="mobile-json-array">{value.map((item, index) => (
+        <section key={`${path}-${index}`} className="mobile-json-item">
+          <span className="mobile-json-item-label">Item {index + 1}</span>
+          {item && typeof item === 'object' ? renderEntries(item, `${path}-${index}`) : <p>{String(item ?? '—')}</p>}
+        </section>
+      ))}</div>;
+    }
+    if (value && typeof value === 'object') return renderEntries(value, path);
+    return <span className={value === null ? 'mobile-json-empty' : ''}>{value === null ? 'Not provided' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}</span>;
+  };
+  const renderEntries = (object, path = 'root') => <dl className="mobile-json-fields">{Object.entries(object).map(([key, value]) => {
+    const complex = value && typeof value === 'object';
+    return <div className={complex ? 'mobile-json-section' : 'mobile-json-field'} key={`${path}-${key}`}>
+      <dt>{humanizeFieldName(key)}</dt>
+      <dd>{renderValue(value, `${path}-${key}`)}</dd>
+    </div>;
+  })}</dl>;
+  return renderEntries(data);
+}
+
+export default function MobileScanner({ tab, onTabChange, onUploadClick, onCameraClick, files, extractedData, isProcessing, processingStatus, error, onProcess, onClear, onDownloadExcel, onDownloadJson, onHistoryChange }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const sourceCard = useRef(null);
   const addButton = useRef(null);
@@ -89,7 +114,7 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
     return { label: date.toLocaleDateString('en-US', { weekday: 'narrow' }), count: scans.filter(scan => new Date(scan.timestamp).toDateString() === date.toDateString()).length };
   });
   const maxCount = Math.max(1, ...week.map(day => day.count));
-  const filtered = scans.filter(scan => [scan.documentType, ...Object.values(scan.data), new Date(scan.timestamp).toLocaleDateString()].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
+  const filtered = scans.filter(scan => [scan.documentType, JSON.stringify(scan.data), new Date(scan.timestamp).toLocaleDateString()].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
   const navigate = (next) => {
     setSourceOpen(false);
     setConfirmClear(false);
@@ -99,8 +124,7 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
   const download = async (scan) => {
     setExportError('');
     try {
-      if (scan.data._documentType === 'COR') await downloadCorExcel([scan.data]);
-      else await downloadExtractedExcel([scan.data]);
+      await downloadDocumentExcel([scan.data]);
     } catch { setExportError('Could not download this document. Please try again.'); }
   };
   const downloadResults = async () => {
@@ -139,7 +163,7 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
         </div>
 
         <button className="mobile-feature-row" onClick={() => navigate('scan')}>
-          <span className="mobile-icon-tile"><FileSpreadsheet size={27} /></span><span><strong>From document to spreadsheet</strong><small>Upload, extract, and export to Excel.</small><span className="mobile-tag">ID & COR documents</span></span><ChevronRight size={20} />
+          <span className="mobile-icon-tile"><FileSpreadsheet size={27} /></span><span><strong>From document to structured data</strong><small>Upload, extract, and export as JSON or Excel.</small><span className="mobile-tag">Any readable document</span></span><ChevronRight size={20} />
         </button>
         <div className="mobile-section-heading"><h2>Recent scans</h2><button onClick={() => navigate('history')}>View all <ChevronRight size={17} /></button></div>
         {scans.length ? <ScanList scans={scans.slice(0, 3)} onDownload={download} /> : <EmptyState />}
@@ -149,14 +173,14 @@ export default function MobileScanner({ tab, onTabChange, onUploadClick, onCamer
         <header className="mobile-heading"><p className="mobile-eyebrow">Your digital workspace</p><h1>Scan documents</h1><p>A few taps from paper to spreadsheet.</p></header>
         {error && <p role="alert" className="mobile-error">{error}</p>}
         {isProcessing ? <section className="mobile-card mobile-processing" role="status" aria-live="polite"><span className="mobile-empty-icon"><ScanLine size={38} className="scan-animate" /></span><h2>Working on your documents</h2><p>{processingStatus || 'Preparing your scan…'}</p><div className="mobile-progress"><span className="progress-animate" /></div><small>You can browse your history while we work.</small></section>
-          : extractedData ? <section className="mobile-card mobile-results"><span className="mobile-icon-tile"><CheckCheck size={28} /></span><h2>{extractedData.length ? 'Your scan is ready' : 'No documents found'}</h2><p>{extractedData.length} document{extractedData.length !== 1 ? 's' : ''} extracted. {extractedData.length ? 'Review your details below.' : 'Try a clearer image with the whole document visible.'}</p>
-            {extractedData.map((data, index) => <details key={index}><summary>{data.fullName || data.firstName || `Document ${index + 1}`}</summary><dl>{Object.entries(data).filter(([key]) => !key.startsWith('_')).map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value ?? '—')}</dd></div>)}</dl></details>)}
-            {extractedData.length > 0 && <button className="mobile-primary-button" onClick={downloadResults}><Download size={19} /> Download Excel</button>}<button className="mobile-secondary-button" onClick={onClear}>Scan another document</button>
+          : extractedData ? <section className="mobile-card mobile-results"><span className="mobile-icon-tile"><CheckCheck size={28} /></span><h2>{extractedData.length ? 'Your scan is ready' : 'No documents found'}</h2><p>{extractedData.length} document{extractedData.length !== 1 ? 's' : ''} extracted. Review the AI-extracted values against the original document before using them.</p>
+            {extractedData.map((data, index) => <details key={index} open={extractedData.length === 1}><summary>{data._documentType || data.fullName || data.firstName || `Document ${index + 1}`}</summary><DocumentFields data={getCleanDocumentData(data)} /></details>)}
+            {extractedData.length > 0 && <div className="mobile-export-actions"><button className="mobile-primary-button" onClick={onDownloadJson}><Download size={19} /> Download JSON</button><button className="mobile-secondary-button" onClick={downloadResults}><FileSpreadsheet size={19} /> Download Excel</button></div>}<button className="mobile-secondary-button" onClick={onClear}>Scan another document</button>
           </section> : files?.length ? <section className="mobile-card mobile-files"><div className="mobile-section-heading"><h2>Ready to scan</h2><button onClick={onClear}>Clear</button></div><p>{files.length} of 10 files selected</p>{files.map((file, index) => <div className="mobile-file" key={index}><FileText size={22} /><span>{file.name}<small>{(file.size / 1024).toFixed(0)} KB</small></span></div>)}<button className="mobile-primary-button" onClick={onProcess}><ScanLine size={20} /> Extract document data</button><button className="mobile-secondary-button" onClick={openSourceOptions}>Choose different files</button></section>
             : <section className="mobile-upload-card"><span className="mobile-empty-icon"><Upload size={32} /></span><strong>Add your documents</strong><span>Choose photos, PDFs, or Word files</span><button className="mobile-primary-button" onClick={onCameraClick}><Camera size={20} /> Take a photo</button><button className="mobile-secondary-button" onClick={onUploadClick}><Upload size={19} /> Upload files</button><small>Up to 10 files at a time</small></section>}
         <h2 className="mobile-subheading">Made for your paperwork</h2>
-        <div className="mobile-feature-row"><span className="mobile-icon-tile"><FileText size={26} /></span><span><strong>IDs & certificates</strong><small>Extract names, document numbers, and more.</small></span></div>
-        <div className="mobile-feature-row"><span className="mobile-icon-tile"><FileSpreadsheet size={26} /></span><span><strong>Excel, ready to go</strong><small>Download structured data after your scan.</small></span></div>
+        <div className="mobile-feature-row"><span className="mobile-icon-tile"><FileText size={26} /></span><span><strong>Any readable document</strong><small>Extract labeled fields, sections, and table rows.</small></span></div>
+        <div className="mobile-feature-row"><span className="mobile-icon-tile"><FileSpreadsheet size={26} /></span><span><strong>Choose your format</strong><small>Download structured results as JSON or Excel.</small></span></div>
         <p className="mobile-footnote">For best results, use a clear photo with all document edges visible.</p>
       </>}
 

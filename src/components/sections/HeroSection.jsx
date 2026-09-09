@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { FileSpreadsheet, Download, ScanLine, CheckCircle, X, Search, Trash2, Clock, Send, Bot, User } from 'lucide-react';
 import useTypingAnimation from '../../hooks/useTypingAnimation';
-import { downloadExtractedExcel, downloadCorExcel } from '../../utils/excelExport';
+import { downloadDocumentExcel } from '../../utils/excelExport';
+import { getCleanDocumentData } from '../../utils/documentData';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const MOTIVATIONAL_QUOTES = [
@@ -28,6 +29,7 @@ const HeroSection = ({
   onProcess,
   onClear,
   onDownloadExcel,
+  onDownloadJson,
   hasCorDocuments,
   hasIdDocuments,
   historyVersion,
@@ -141,8 +143,8 @@ const HeroSection = ({
     // State: Results ready
     if (hasResults) {
       // Determine if all documents are COR for display label
-      const allCor = extractedData.every(item => item._documentType === 'COR');
-      const docTypeLabel = allCor ? 'COR' : (hasCorDocuments ? 'Mixed' : 'ID');
+      const documentTypes = [...new Set(extractedData.map(item => item._documentType || 'Document'))];
+      const docTypeLabel = documentTypes.length === 1 ? documentTypes[0] : 'documents';
 
       return (
         <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
@@ -158,6 +160,7 @@ const HeroSection = ({
           <div className="flex-1 overflow-y-auto flex flex-col gap-2">
             {extractedData.map((item, i) => {
               const isCor = item._documentType === 'COR';
+              const isId = item._documentType === 'ID';
               const displayFields = isCor
                 ? [
                     ['First Name', item.firstName],
@@ -171,14 +174,14 @@ const HeroSection = ({
                     ['Marital Status', item.maritalStatus],
                     ['BIR Reg. Date', item.birRegistrationDate],
                   ]
-                : [
+                : isId ? [
                     ['Full Name', item.fullName],
                     ['Birth Date', item.dateOfBirth],
                     ['Address', item.address],
                     ['ID Number', item.documentNumber],
                     ['Nationality', item.nationality],
                     ['Expiry', item.expiryDate],
-                  ];
+                  ] : null;
 
               return (
                 <div key={i} className="rounded-xl border border-[var(--outline-variant)] overflow-hidden">
@@ -187,28 +190,35 @@ const HeroSection = ({
                     <span className="truncate">{item._fileName || `Document ${i + 1}`}</span>
                     {isCor && <span className="ml-auto px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[8px]">COR</span>}
                   </div>
-                  <div className={`grid gap-0 ${isCor ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                  {displayFields ? <div className="grid grid-cols-2 gap-0">
                     {displayFields.map(([label, value], j) => (
                       <div key={j} className="flex flex-col gap-0 px-3 py-1.5 border-b border-[var(--outline-variant)] last:border-b-0 [&:nth-last-child(-n+2)]:border-b-0">
                         <span className="text-[8px] font-semibold tracking-[0.08em] uppercase text-[var(--text-muted)]">{label}</span>
                         <span className="text-[11px] font-semibold text-[var(--text-primary)] truncate">{value}</span>
                       </div>
                     ))}
-                  </div>
+                  </div> : <pre className="m-3 p-3 rounded-lg bg-[var(--surface-container-low)] text-[10px] leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap break-words overflow-auto">{JSON.stringify(getCleanDocumentData(item), null, 2)}</pre>}
                 </div>
               );
             })}
           </div>
-          <div className="flex gap-2 pt-1">
+          <div className="grid grid-cols-2 gap-2 pt-1">
             <button
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[var(--accent-primary)] border-none rounded-lg text-white text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95"
+              className="flex items-center justify-center gap-1.5 py-2 bg-[var(--accent-primary)] border-none rounded-lg text-white text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95"
+              onClick={onDownloadJson}
+            >
+              <Download size={12} />
+              Download JSON
+            </button>
+            <button
+              className="flex items-center justify-center gap-1.5 py-2 bg-[var(--surface-container)] border-none rounded-lg text-[var(--accent-secondary)] text-[10px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95"
               onClick={onDownloadExcel}
             >
               <Download size={12} />
               Download Excel
             </button>
             <button
-              className="flex items-center justify-center gap-1.5 py-2 px-3 bg-[var(--bg-secondary)] border border-[var(--outline-variant)] rounded-lg text-[var(--text-secondary)] text-[10px] font-semibold uppercase cursor-pointer transition-colors duration-200 hover:text-[var(--text-primary)]"
+              className="col-span-2 flex items-center justify-center gap-1.5 py-2 px-3 bg-[var(--bg-secondary)] border border-[var(--outline-variant)] rounded-lg text-[var(--text-secondary)] text-[10px] font-semibold uppercase cursor-pointer transition-colors duration-200 hover:text-[var(--text-primary)]"
               onClick={onClear}
             >
               <span className="material-symbols-outlined !text-[14px]">close</span>
@@ -319,13 +329,11 @@ const HeroSection = ({
           </h1>
 
           <p className="text-lg max-md:text-base leading-[1.7] text-[var(--text-secondary)] max-w-[540px] lg:mx-0 mx-auto">
-            Automate identity verification with 99.9% accuracy. Upload single or bulk{' '}
-            <strong className="text-[var(--accent-primary)]">ID</strong> or{' '}
-            <strong className="text-[var(--accent-primary)]">COR (Certificate of Registration)</strong>{' '}
-            documents — photos, PDFs, or Word files.
+            Turn readable documents into structured data. Upload single or bulk photos,
+            PDFs, or Word files—including IDs, certificates, forms, and Personal Data Sheets.
             <br className="hidden sm:block" />
-            Our AI auto-detects document type and extracts Name, Address, ID Number,
-            BIR Registration Date &amp; more — then exports everything to Excel.
+            Our AI identifies visible fields, sections, and tables, then lets you export the
+            result as JSON or Excel.
           </p>
           <p className="text-sm leading-relaxed text-[var(--text-muted)] max-w-[540px] lg:mx-0 mx-auto flex items-center gap-1.5">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent-primary)]">lightbulb</span>
@@ -338,7 +346,7 @@ const HeroSection = ({
               onClick={onUploadClick}
             >
               <span className="material-symbols-outlined">upload_file</span>
-              Upload ID or COR
+              Upload Documents
             </button>
             {error && !hasFiles && (
               <div className="px-4 py-2 bg-[rgba(239,68,68,0.08)] rounded-lg border border-[rgba(239,68,68,0.15)]">
@@ -601,13 +609,7 @@ const HeroSection = ({
                                 </div>
                               </div>
                               <button
-                                onClick={() => {
-                                  if (allCor) {
-                                    downloadCorExcel(batch.scans.map((s) => s.data || s));
-                                  } else {
-                                    downloadExtractedExcel(batch.scans.map((s) => s.data || s));
-                                  }
-                                }}
+                                onClick={() => downloadDocumentExcel(batch.scans.map((s) => s.data || s))}
                                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
                               >
                                 <Download size={12} />
@@ -774,13 +776,7 @@ const HeroSection = ({
                             </div>
                           </div>
                           <button
-                            onClick={() => {
-                              if (allCor) {
-                                downloadCorExcel(batch.scans.map((s) => s.data || s));
-                              } else {
-                                downloadExtractedExcel(batch.scans.map((s) => s.data || s));
-                              }
-                            }}
+                            onClick={() => downloadDocumentExcel(batch.scans.map((s) => s.data || s))}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity shrink-0"
                           >
                             <Download size={12} />

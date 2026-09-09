@@ -6,11 +6,12 @@ import TrustedBySection from '../components/sections/TrustedBySection';
 import FeaturesSection from '../components/sections/FeaturesSection';
 import AboutSection from '../components/sections/AboutSection';
 import Footer from '../components/sections/Footer';
-import geminiOCR, { blobToBase64 } from '../services/geminiOCR';
+import geminiOCR, { imageToAIData } from '../services/geminiOCR';
 import extractTextFromImage from '../services/ocrEngine';
 import pdfToPageImages from '../services/pdfProcessor';
 import docxToImages from '../services/docxProcessor';
-import { downloadExtractedExcel, downloadCorExcel } from '../utils/excelExport';
+import { downloadDocumentExcel } from '../utils/excelExport';
+import { downloadDocumentJson } from '../utils/jsonExport';
 
 
 const MAX_FILES = 10;
@@ -62,12 +63,12 @@ const HomePage = () => {
     }
 
     // Step 2: Gemini AI — returns array of IDs found
-    setProcessingStatus(`AI extracting IDs from ${label}...`);
-    const ids = await geminiOCR({ file, ocrText });
-    return ids.map((id) => ({ ...id, _fileName: label }));
+    setProcessingStatus(`AI organizing fields from ${label}...`);
+    const documents = await geminiOCR({ file, ocrText });
+    return documents.map((document) => ({ ...document, _fileName: label }));
   };
 
-  const processPageBlob = async (blob, label) => {
+  const preparePageBlob = async (blob, label) => {
     // Tesseract on the rendered page image
     let ocrText = null;
     setProcessingStatus(`Reading text from ${label}...`);
@@ -78,11 +79,8 @@ const HomePage = () => {
       console.warn(`Tesseract OCR failed for ${label}, falling back to Gemini-only.`);
     }
 
-    // Convert blob to base64 for Gemini
-    setProcessingStatus(`AI extracting IDs from ${label}...`);
-    const base64 = await blobToBase64(blob);
-    const ids = await geminiOCR({ base64, mimeType: 'image/png', ocrText });
-    return ids.map((id) => ({ ...id, _fileName: label }));
+    const image = await imageToAIData(blob);
+    return { ...image, ocrText, label };
   };
 
   const handleProcess = async () => {
@@ -118,25 +116,33 @@ const HomePage = () => {
             setProcessingStatus(`Rendering page ${pageNum}/${total} of ${file.name}...`);
           });
 
+          const preparedPages = [];
           for (const { blob, pageNum } of pages) {
             const pageLabel = `${file.name} — Page ${pageNum}`;
-            const pageIds = await processPageBlob(blob, pageLabel);
-            fileResults.push(...pageIds);
+            setProcessingStatus(`Reading page ${pageNum}/${pages.length} of ${file.name}...`);
+            preparedPages.push(await preparePageBlob(blob, pageLabel));
           }
+          setProcessingStatus(`AI organizing fields from ${file.name}...`);
+          const documents = await geminiOCR({ pages: preparedPages });
+          fileResults.push(...documents.map(document => ({ ...document, _fileName: file.name })));
         } else if (isDocx) {
           // DOCX: extract embedded images, then process each
           setProcessingStatus(`Extracting images from ${file.name}...`);
           const images = await docxToImages(file);
 
           if (images.length === 0) {
-            throw new Error(`No images found in ${file.name}. Please paste ID photos into the Word document.`);
+            throw new Error(`No document images found in ${file.name}. Please add document images to the Word file.`);
           }
 
+          const preparedPages = [];
           for (const { blob, index } of images) {
             const imgLabel = `${file.name} — Image ${index}`;
-            const imgIds = await processPageBlob(blob, imgLabel);
-            fileResults.push(...imgIds);
+            setProcessingStatus(`Reading image ${index}/${images.length} of ${file.name}...`);
+            preparedPages.push(await preparePageBlob(blob, imgLabel));
           }
+          setProcessingStatus(`AI organizing fields from ${file.name}...`);
+          const documents = await geminiOCR({ pages: preparedPages });
+          fileResults.push(...documents.map(document => ({ ...document, _fileName: file.name })));
         } else {
           // Image file: may contain multiple IDs
           const imageIds = await processImage(file, fileLabel);
@@ -153,14 +159,14 @@ const HomePage = () => {
 
       // Save scans to localStorage
       const newScans = results.map((data) => {
-        const docType = data._documentType || 'ID';
+        const docType = data._documentType || 'Document';
         const nameField = docType === 'COR' ? data.firstName : data.fullName;
         const scanName = nameField && nameField !== 'Not found'
           ? nameField.split(' ')[0]
-          : 'Unknown';
+          : null;
         return {
           id: Date.now() + Math.random(),
-          documentType: `${docType} - ${scanName}`,
+          documentType: scanName ? `${docType} - ${scanName}` : docType,
           timestamp: Date.now(),
           data,
         };
@@ -179,20 +185,13 @@ const HomePage = () => {
   const hasCorDocuments = extractedData?.some(item => item._documentType === 'COR');
   const hasIdDocuments = extractedData?.some(item => item._documentType === 'ID' || !item._documentType);
 
-  // Handle Excel download based on document type
   const handleDownloadExcel = async () => {
     if (!extractedData || extractedData.length === 0) return;
+    await downloadDocumentExcel(extractedData);
+  };
 
-    // If all documents are COR, use COR export
-    // If mixed or all ID, use ID export
-    const allCor = extractedData.every(item => item._documentType === 'COR');
-
-    if (allCor) {
-      await downloadCorExcel(extractedData);
-    } else {
-      // For ID or mixed, use ID export
-      await downloadExtractedExcel(extractedData);
-    }
+  const handleDownloadJson = () => {
+    if (extractedData?.length) downloadDocumentJson(extractedData);
   };
 
   return (
@@ -213,6 +212,7 @@ const HomePage = () => {
         onProcess={handleProcess}
         onClear={() => { setFiles(null); setExtractedData(null); setError(null); }}
         onDownloadExcel={handleDownloadExcel}
+        onDownloadJson={handleDownloadJson}
       />
 
       <main className="desktop-scanner flex-1 pt-20">
@@ -228,6 +228,7 @@ const HomePage = () => {
           onProcess={handleProcess}
           onClear={() => { setFiles(null); setExtractedData(null); setError(null); }}
           onDownloadExcel={handleDownloadExcel}
+          onDownloadJson={handleDownloadJson}
           hasCorDocuments={hasCorDocuments}
           hasIdDocuments={hasIdDocuments}
         />

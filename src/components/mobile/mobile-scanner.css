@@ -143,6 +143,20 @@
   .mobile-results dl > div { padding: 8px 0; }
   .mobile-results dt { color: var(--text-muted); text-transform: capitalize; font-size: 11px; }
   .mobile-results dd { font-size: 13px; overflow-wrap: anywhere; }
+  .mobile-json-fields { display: flex; flex-direction: column; gap: 0; }
+  .mobile-json-field { display: grid; grid-template-columns: minmax(100px, 42%) 1fr; gap: 12px; align-items: start; border-bottom: 1px solid var(--surface-container-low); }
+  .mobile-json-field:last-child { border-bottom: 0; }
+  .mobile-json-field > dd { text-align: right; color: var(--text-primary); }
+  .mobile-json-section { padding: 12px 0 !important; }
+  .mobile-json-section > dt { color: var(--accent-secondary); font-size: 13px; font-weight: 650; margin-bottom: 8px; }
+  .mobile-json-section > dd > .mobile-json-fields { border-left: 2px solid var(--surface-container); padding-left: 12px; }
+  .mobile-json-array { display: flex; flex-direction: column; gap: 9px; }
+  .mobile-json-item { border-radius: 15px; padding: 12px; background: var(--surface-container-low); }
+  .mobile-json-item-label { display: block; color: var(--accent-secondary); font-size: 10px; font-weight: 650; margin-bottom: 7px; }
+  .mobile-json-item .mobile-json-fields { margin-top: 0; }
+  .mobile-json-empty { color: var(--text-muted); font-style: italic; }
+  .mobile-export-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .mobile-export-actions .mobile-primary-button, .mobile-export-actions .mobile-secondary-button { margin-top: 0; padding-left: 10px; padding-right: 10px; }
   .mobile-error { color: var(--text-primary); border: 1px solid var(--accent-primary); background: var(--surface-container-low); padding: 16px; border-radius: 18px; margin-bottom: 18px; font-size: 13px; overflow-wrap: anywhere; }
   .mobile-about-intro { margin-bottom: 22px; padding: 26px; }
   .mobile-about-intro h2 { font-size: 29px; letter-spacing: -.7px; line-height: 1.2; font-weight: 600; margin: 19px 0 12px; }

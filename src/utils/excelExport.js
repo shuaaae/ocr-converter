@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { flattenDocumentFields, getCleanDocumentData, humanizeFieldName } from './documentData.js';
 
 const ID_HEADERS = ['ID NUMBER', 'LAST NAME', 'FIRST NAME', 'MIDDLE NAME', 'BIRTH DATE', 'ADDRESS', 'EXPIRATION OF ID'];
 
@@ -124,12 +125,87 @@ const buildWorkbook = async (rows, isCor = false) => {
 };
 
 const triggerDownload = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
+  link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+
+const safeSheetName = (name, used) => {
+  const base = String(name || 'Data').replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || 'Data';
+  let candidate = base;
+  let suffix = 2;
+  while (used.has(candidate)) {
+    const ending = ` ${suffix++}`;
+    candidate = `${base.slice(0, 31 - ending.length)}${ending}`;
+  }
+  used.add(candidate);
+  return candidate;
+};
+
+const styleGenericSheet = (sheet) => {
+  const firstRow = sheet.getRow(1);
+  firstRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  firstRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF087F91' } };
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  sheet.columns.forEach(column => {
+    let width = 12;
+    column.eachCell({ includeEmpty: true }, cell => { width = Math.max(width, String(cell.value ?? '').length + 2); });
+    column.width = Math.min(width, 48);
+  });
+};
+
+export const buildGenericWorkbook = (results) => {
+  const workbook = new ExcelJS.Workbook();
+  const usedNames = new Set();
+  const fieldSheet = workbook.addWorksheet(safeSheetName('Fields', usedNames));
+  const multiple = results.length > 1;
+  fieldSheet.addRow(multiple ? ['Document', 'Field', 'Value'] : ['Field', 'Value']);
+
+  results.forEach((result, resultIndex) => {
+    const data = getCleanDocumentData(result);
+    const documentLabel = result._documentType || `Document ${resultIndex + 1}`;
+    flattenDocumentFields(data).forEach(([field, value]) => {
+      fieldSheet.addRow(multiple ? [documentLabel, field, value] : [field, value]);
+    });
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (!Array.isArray(value) || value.length === 0) return;
+      const sheet = workbook.addWorksheet(safeSheetName(multiple ? `${resultIndex + 1} ${humanizeFieldName(key)}` : humanizeFieldName(key), usedNames));
+      const objectRows = value.filter(item => item && typeof item === 'object' && !Array.isArray(item));
+      if (objectRows.length) {
+        const headers = [...new Set(objectRows.flatMap(row => Object.keys(row)))];
+        sheet.addRow(headers.map(humanizeFieldName));
+        objectRows.forEach(row => sheet.addRow(headers.map(header => {
+          const cell = row[header];
+          return cell && typeof cell === 'object' ? JSON.stringify(cell) : cell;
+        })));
+      } else {
+        sheet.addRow(['Value']);
+        value.forEach(item => sheet.addRow([item && typeof item === 'object' ? JSON.stringify(item) : item]));
+      }
+      styleGenericSheet(sheet);
+    });
+  });
+
+  styleGenericSheet(fieldSheet);
+  return workbook;
+};
+
+export const downloadDocumentExcel = async (results, filename) => {
+  if (!Array.isArray(results) || results.length === 0) return;
+  const allCor = results.every(item => item._documentType === 'COR');
+  const allId = results.every(item => item._documentType === 'ID');
+  if (allCor) return downloadCorExcel(results, filename);
+  if (allId) return downloadExtractedExcel(results, filename);
+  const workbook = buildGenericWorkbook(results);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  triggerDownload(blob, `${filename || `Document_Export_${new Date().toISOString().slice(0, 10)}`}.xlsx`);
 };
 
 /**
